@@ -7,9 +7,12 @@ const PASSWORD_MIN = 8;
 const PASSWORD_MAX = 64;
 const CLIENT_ID_MIN = 3;
 const CLIENT_ID_MAX = 50;
+const ROLE_MIN = 2;
+const ROLE_MAX = 30;
 
 const sqlPattern = /(--|;|\/\*|\*\/|\b(SELECT|INSERT|UPDATE|DELETE|DROP|UNION|ALTER|CREATE)\b)/i;
 const clientIdPattern = /^[a-z0-9][a-z0-9._-]*$/;
+const rolePattern = /^[a-z][a-z0-9_-]*$/;
 
 const hasSqlInjection = (value: string): boolean => sqlPattern.test(value);
 
@@ -63,8 +66,37 @@ const throwIfValidationErrors = (
 };
 
 export const validateRegisterCredentials = (req: Request, _res: Response, next: NextFunction): void => {
-  const { username, password } = req.body as { username?: unknown; password?: unknown };
+  const { username, password, roles } = req.body as { username?: unknown; password?: unknown; roles?: unknown };
   const errors = validateBaseCredentials(username, password);
+
+  if (!Array.isArray(roles) || roles.length === 0) {
+    errors.push({ field: 'roles', message: 'Roles list is required' });
+  }
+
+  if (Array.isArray(roles)) {
+    roles.forEach((role, index) => {
+      const field = `roles[${index}]`;
+
+      if (typeof role !== 'string' || role.trim().length === 0) {
+        errors.push({ field, message: 'Role is required' });
+        return;
+      }
+
+      const normalized = role.trim();
+      if (normalized.length < ROLE_MIN || normalized.length > ROLE_MAX) {
+        errors.push({ field, message: `Role must be between ${ROLE_MIN} and ${ROLE_MAX} characters` });
+      }
+
+      if (!rolePattern.test(normalized)) {
+        errors.push({ field, message: 'Role format is invalid' });
+      }
+
+      if (hasSqlInjection(role)) {
+        errors.push({ field, message: 'Role contains forbidden patterns' });
+      }
+    });
+  }
+
   throwIfValidationErrors(errors, next);
   if (errors.length > 0) {
     return;

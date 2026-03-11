@@ -67,6 +67,7 @@ export class LoginUser {
     const token = this.tokenSigner.sign({
       userId: user.id,
       username: user.username,
+      roles: user.roles,
       clientId,
       sessionId,
       tokenId

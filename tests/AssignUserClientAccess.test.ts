@@ -30,8 +30,8 @@ describe('AssignUserClientAccess', () => {
       // Arrange
       const { useCase, deps } = buildUseCase();
       deps.userRepository.findByUsername
-        .mockResolvedValueOnce(new User({ id: 'u1', username: 'john', passwordHash: 'hash-1' }))
-        .mockResolvedValueOnce(new User({ id: 'u2', username: 'ana', passwordHash: 'hash-2' }));
+        .mockResolvedValueOnce(new User({ id: 'u1', username: 'john', passwordHash: 'hash-1', roles: ['admin'] }))
+        .mockResolvedValueOnce(new User({ id: 'u2', username: 'ana', passwordHash: 'hash-2', roles: ['seller'] }));
       deps.clientRegistry.isActiveClient.mockResolvedValue(true);
       deps.userClientAccessRepository.setAllowedClientIds
         .mockResolvedValueOnce(['web-app', 'mobile-app'])
@@ -78,7 +78,7 @@ describe('AssignUserClientAccess', () => {
     it('should throw INVALID_CLIENT when any clientId is invalid', async () => {
       // Arrange
       const { useCase, deps } = buildUseCase();
-      deps.userRepository.findByUsername.mockResolvedValue(new User({ id: 'u1', username: 'john', passwordHash: 'hash-1' }));
+      deps.userRepository.findByUsername.mockResolvedValue(new User({ id: 'u1', username: 'john', passwordHash: 'hash-1', roles: ['admin'] }));
       deps.clientRegistry.isActiveClient.mockResolvedValue(false);
 
       // Act

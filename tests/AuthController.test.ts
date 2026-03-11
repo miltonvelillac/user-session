@@ -46,8 +46,8 @@ describe('AuthController', () => {
     it('should return 201 with created user data', async () => {
       // Arrange
       const { controller, deps } = buildController();
-      deps.createUser.execute.mockResolvedValue({ id: 'u1', username: 'john' });
-      const request = { body: { username: 'john', password: 'secret-123' } } as Request;
+      deps.createUser.execute.mockResolvedValue({ id: 'u1', username: 'john', roles: ['admin'] });
+      const request = { body: { username: 'john', password: 'secret-123', roles: ['admin'] } } as Request;
       const response = buildResponse();
       const next = jest.fn() as NextFunction;
 
@@ -55,9 +55,9 @@ describe('AuthController', () => {
       await controller.register(request, response, next);
 
       // Assert
-      expect(deps.createUser.execute).toHaveBeenCalledWith({ username: 'john', password: 'secret-123' });
+      expect(deps.createUser.execute).toHaveBeenCalledWith({ username: 'john', password: 'secret-123', roles: ['admin'] });
       expect(response.status).toHaveBeenCalledWith(201);
-      expect(response.json).toHaveBeenCalledWith({ data: { id: 'u1', username: 'john' } });
+      expect(response.json).toHaveBeenCalledWith({ data: { id: 'u1', username: 'john', roles: ['admin'] } });
       expect(next).not.toHaveBeenCalled();
     });
 
@@ -66,7 +66,7 @@ describe('AuthController', () => {
       const { controller, deps } = buildController();
       const error = new Error('create-user-error');
       deps.createUser.execute.mockRejectedValue(error);
-      const request = { body: { username: 'john', password: 'secret-123' } } as Request;
+      const request = { body: { username: 'john', password: 'secret-123', roles: ['admin'] } } as Request;
       const response = buildResponse();
       const next = jest.fn() as NextFunction;
 

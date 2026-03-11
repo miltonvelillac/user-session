@@ -1,6 +1,6 @@
 import { LoginUser } from '../src/application/use-cases/LoginUser';
 import { User } from '../src/domain/entities/User';
-import { AppError, ErrorCodes } from '../src/shared/errors/AppError';
+import { ErrorCodes } from '../src/shared/errors/AppError';
 
 type LoginDependencies = {
   userRepository: { findByUsername: jest.Mock };
@@ -36,7 +36,8 @@ const buildUseCase = (): { useCase: LoginUser; deps: LoginDependencies } => {
 const validUser = new User({
   id: 'u1',
   username: 'john',
-  passwordHash: 'hashed:super-secret'
+  passwordHash: 'hashed:super-secret',
+  roles: ['admin']
 });
 
 describe('LoginUser', () => {
@@ -65,6 +66,7 @@ describe('LoginUser', () => {
         expect.objectContaining({
           userId: 'u1',
           username: 'john',
+          roles: ['admin'],
           clientId: 'web-app'
         })
       );
@@ -93,7 +95,7 @@ describe('LoginUser', () => {
       await expect(execution).rejects.toMatchObject({
         code: ErrorCodes.INVALID_CLIENT,
         status: 401
-      } as AppError);
+      });
       expect(deps.userRepository.findByUsername).not.toHaveBeenCalled();
     });
 
@@ -114,7 +116,7 @@ describe('LoginUser', () => {
       await expect(execution).rejects.toMatchObject({
         code: ErrorCodes.INVALID_CREDENTIALS,
         status: 401
-      } as AppError);
+      });
       expect(deps.passwordHasher.compare).not.toHaveBeenCalled();
     });
 
@@ -136,7 +138,7 @@ describe('LoginUser', () => {
       await expect(execution).rejects.toMatchObject({
         code: ErrorCodes.INVALID_CREDENTIALS,
         status: 401
-      } as AppError);
+      });
       expect(deps.userClientAccessRepository.hasAccessToClientId).not.toHaveBeenCalled();
     });
 
@@ -159,7 +161,7 @@ describe('LoginUser', () => {
       await expect(execution).rejects.toMatchObject({
         code: ErrorCodes.CLIENT_ACCESS_DENIED,
         status: 403
-      } as AppError);
+      });
       expect(deps.tokenSigner.sign).not.toHaveBeenCalled();
     });
   });

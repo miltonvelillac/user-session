@@ -26,7 +26,7 @@ describe('validateCredentials middleware', () => {
   describe('#validateRegisterCredentials', () => {
     it('should call next without error for a valid payload', () => {
       // Arrange
-      const body = { username: 'john', password: 'super-secret' };
+      const body = { username: 'john', password: 'super-secret', roles: ['admin'] };
 
       // Act
       const { next, error } = executeMiddleware(validateRegisterCredentials, body);
@@ -38,7 +38,7 @@ describe('validateCredentials middleware', () => {
 
     it('should return VALIDATION_ERROR when username is missing', () => {
       // Arrange
-      const body = { password: 'super-secret' };
+      const body = { password: 'super-secret', roles: ['admin'] };
 
       // Act
       const { error } = executeMiddleware(validateRegisterCredentials, body);
@@ -50,7 +50,7 @@ describe('validateCredentials middleware', () => {
 
     it('should return VALIDATION_ERROR for SQL-like username content', () => {
       // Arrange
-      const body = { username: 'john; DROP TABLE users', password: 'super-secret' };
+      const body = { username: 'john; DROP TABLE users', password: 'super-secret', roles: ['admin'] };
 
       // Act
       const { error } = executeMiddleware(validateRegisterCredentials, body);
@@ -66,7 +66,7 @@ describe('validateCredentials middleware', () => {
 
     it('should return VALIDATION_ERROR for short password', () => {
       // Arrange
-      const body = { username: 'john', password: 'short' };
+      const body = { username: 'john', password: 'short', roles: ['admin'] };
 
       // Act
       const { error } = executeMiddleware(validateRegisterCredentials, body);
@@ -76,6 +76,36 @@ describe('validateCredentials middleware', () => {
       expect(error?.details).toEqual(
         expect.arrayContaining([
           expect.objectContaining({ field: 'password', message: expect.stringContaining('between 8 and 64') })
+        ])
+      );
+    });
+
+    it('should return VALIDATION_ERROR when roles list is missing', () => {
+      // Arrange
+      const body = { username: 'john', password: 'super-secret' };
+
+      // Act
+      const { error } = executeMiddleware(validateRegisterCredentials, body);
+
+      // Assert
+      expect(error?.code).toBe(ErrorCodes.VALIDATION_ERROR);
+      expect(error?.details).toEqual(
+        expect.arrayContaining([expect.objectContaining({ field: 'roles', message: 'Roles list is required' })])
+      );
+    });
+
+    it('should return VALIDATION_ERROR when role format is invalid', () => {
+      // Arrange
+      const body = { username: 'john', password: 'super-secret', roles: ['Admin Root'] };
+
+      // Act
+      const { error } = executeMiddleware(validateRegisterCredentials, body);
+
+      // Assert
+      expect(error?.code).toBe(ErrorCodes.VALIDATION_ERROR);
+      expect(error?.details).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ field: 'roles[0]', message: 'Role format is invalid' })
         ])
       );
     });

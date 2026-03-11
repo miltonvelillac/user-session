@@ -2,7 +2,7 @@ import { CreateUser } from '../src/application/use-cases/CreateUser';
 import { UserRepository } from '../src/domain/ports/UserRepository';
 import { PasswordHasher } from '../src/domain/ports/PasswordHasher';
 import { User } from '../src/domain/entities/User';
-import { AppError, ErrorCodes } from '../src/shared/errors/AppError';
+import { ErrorCodes } from '../src/shared/errors/AppError';
 
 class FakeUserRepository implements UserRepository {
   private readonly users = new Map<string, User>();
@@ -33,11 +33,13 @@ describe('CreateUser', () => {
     const hasher = new FakePasswordHasher();
     const useCase = new CreateUser(repo, hasher);
 
-    const result = await useCase.execute({ username: 'john', password: 'super-secret' });
+    const result = await useCase.execute({ username: 'john', password: 'super-secret', roles: ['admin', 'admin'] });
 
     expect(result.username).toBe('john');
+    expect(result.roles).toEqual(['admin']);
     const saved = await repo.findByUsername('john');
     expect(saved).not.toBeNull();
+    expect(saved?.roles).toEqual(['admin']);
   });
 
   it('rejects duplicate users', async () => {
@@ -45,10 +47,20 @@ describe('CreateUser', () => {
     const hasher = new FakePasswordHasher();
     const useCase = new CreateUser(repo, hasher);
 
-    await useCase.execute({ username: 'john', password: 'super-secret' });
+    await useCase.execute({ username: 'john', password: 'super-secret', roles: ['admin'] });
 
-    await expect(useCase.execute({ username: 'john', password: 'super-secret' })).rejects.toMatchObject({
+    await expect(useCase.execute({ username: 'john', password: 'super-secret', roles: ['admin'] })).rejects.toMatchObject({
       code: ErrorCodes.USER_ALREADY_EXISTS
-    } as AppError);
+    });
+  });
+
+  it('rejects empty roles', async () => {
+    const repo = new FakeUserRepository();
+    const hasher = new FakePasswordHasher();
+    const useCase = new CreateUser(repo, hasher);
+
+    await expect(useCase.execute({ username: 'john', password: 'super-secret', roles: [] })).rejects.toMatchObject({
+      code: ErrorCodes.VALIDATION_ERROR
+    });
   });
 });

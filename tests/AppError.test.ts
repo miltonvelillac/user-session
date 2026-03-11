@@ -50,6 +50,8 @@ describe('AppError', () => {
       // Assert
       expect(values).toContain('INVALID_CLIENT');
       expect(values).toContain('CLIENT_ACCESS_DENIED');
+      expect(values).toContain('UNAUTHORIZED');
+      expect(values).toContain('FORBIDDEN');
       expect(values).toContain('VALIDATION_ERROR');
     });
   });

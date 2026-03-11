@@ -10,6 +10,7 @@ export class JwtTokenSigner implements TokenSigner {
   sign(payload: {
     userId: string;
     username: string;
+    roles: string[];
     clientId: string;
     sessionId: string;
     tokenId: string;
@@ -22,6 +23,10 @@ export class JwtTokenSigner implements TokenSigner {
       jwtid: payload.tokenId
     };
 
-    return jwt.sign({ username: payload.username, sid: payload.sessionId }, secret, options);
+    return jwt.sign({
+      username: payload.username,
+      roles: payload.roles,
+      sid: payload.sessionId
+    }, secret, options);
   }
 }
