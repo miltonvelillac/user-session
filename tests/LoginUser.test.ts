@@ -1,123 +1,166 @@
 import { LoginUser } from '../src/application/use-cases/LoginUser';
-import { UserRepository } from '../src/domain/ports/UserRepository';
-import { PasswordHasher } from '../src/domain/ports/PasswordHasher';
-import { TokenSigner } from '../src/domain/ports/TokenSigner';
-import { TokenRepository } from '../src/domain/ports/TokenRepository';
-import { ClientRegistry } from '../src/domain/ports/ClientRegistry';
 import { User } from '../src/domain/entities/User';
 import { AppError, ErrorCodes } from '../src/shared/errors/AppError';
 
-class FakeUserRepository implements UserRepository {
-  private readonly users = new Map<string, User>();
+type LoginDependencies = {
+  userRepository: { findByUsername: jest.Mock };
+  passwordHasher: { compare: jest.Mock };
+  clientRegistry: { isActiveClient: jest.Mock };
+  userClientAccessRepository: { hasAccessToClientId: jest.Mock };
+  tokenSigner: { sign: jest.Mock };
+  tokenRepository: { saveToken: jest.Mock };
+};
 
-  async findByUsername(username: string): Promise<User | null> {
-    return this.users.get(username) || null;
-  }
+const buildUseCase = (): { useCase: LoginUser; deps: LoginDependencies } => {
+  const deps: LoginDependencies = {
+    userRepository: { findByUsername: jest.fn() },
+    passwordHasher: { compare: jest.fn() },
+    clientRegistry: { isActiveClient: jest.fn() },
+    userClientAccessRepository: { hasAccessToClientId: jest.fn() },
+    tokenSigner: { sign: jest.fn() },
+    tokenRepository: { saveToken: jest.fn() }
+  };
 
-  async save(user: User): Promise<User> {
-    this.users.set(user.username, user);
-    return user;
-  }
-}
+  const useCase = new LoginUser(
+    deps.userRepository as never,
+    deps.passwordHasher as never,
+    deps.clientRegistry as never,
+    deps.userClientAccessRepository as never,
+    deps.tokenSigner as never,
+    deps.tokenRepository as never
+  );
 
-class FakePasswordHasher implements PasswordHasher {
-  async hash(password: string): Promise<string> {
-    return `hashed:${password}`;
-  }
+  return { useCase, deps };
+};
 
-  async compare(plain: string, hash: string): Promise<boolean> {
-    return hash === `hashed:${plain}`;
-  }
-}
-
-class FakeTokenSigner implements TokenSigner {
-  sign(payload: { userId: string; username: string; clientId: string; sessionId: string; tokenId: string }): string {
-    return `token:${payload.userId}:${payload.clientId}:${payload.sessionId}`;
-  }
-}
-
-class FakeTokenRepository implements TokenRepository {
-  public readonly saved: Array<{
-    userId: string;
-    clientId: string;
-    sessionId: string;
-    tokenId: string;
-    token: string;
-  }> = [];
-
-  async saveToken(data: {
-    userId: string;
-    clientId: string;
-    sessionId: string;
-    tokenId: string;
-    token: string;
-  }): Promise<{
-    userId: string;
-    clientId: string;
-    sessionId: string;
-    tokenId: string;
-    token: string;
-  }> {
-    this.saved.push(data);
-    return data;
-  }
-}
-
-class FakeClientRegistry implements ClientRegistry {
-  constructor(private readonly validClientIds: string[]) {}
-
-  async isActiveClient(clientId: string): Promise<boolean> {
-    return this.validClientIds.includes(clientId);
-  }
-}
+const validUser = new User({
+  id: 'u1',
+  username: 'john',
+  passwordHash: 'hashed:super-secret'
+});
 
 describe('LoginUser', () => {
-  it('returns a token and stores it', async () => {
-    const repo = new FakeUserRepository();
-    const hasher = new FakePasswordHasher();
-    const clientRegistry = new FakeClientRegistry(['web-app']);
-    const signer = new FakeTokenSigner();
-    const tokenRepo = new FakeTokenRepository();
-    const useCase = new LoginUser(repo, hasher, clientRegistry, signer, tokenRepo);
+  describe('#execute', () => {
+    it('should return token and sessionId when all checks pass', async () => {
+      // Arrange
+      const { useCase, deps } = buildUseCase();
+      deps.clientRegistry.isActiveClient.mockResolvedValue(true);
+      deps.userRepository.findByUsername.mockResolvedValue(validUser);
+      deps.passwordHasher.compare.mockResolvedValue(true);
+      deps.userClientAccessRepository.hasAccessToClientId.mockResolvedValue(true);
+      deps.tokenSigner.sign.mockReturnValue('signed-token');
+      deps.tokenRepository.saveToken.mockResolvedValue(undefined);
 
-    await repo.save(new User({ id: 'u1', username: 'john', passwordHash: 'hashed:super-secret' }));
+      // Act
+      const result = await useCase.execute({
+        username: 'john',
+        password: 'super-secret',
+        clientId: 'web-app'
+      });
 
-    const result = await useCase.execute({ username: 'john', password: 'super-secret', clientId: 'web-app' });
+      // Assert
+      expect(result.token).toBe('signed-token');
+      expect(result.sessionId).toBeTruthy();
+      expect(deps.tokenSigner.sign).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'u1',
+          username: 'john',
+          clientId: 'web-app'
+        })
+      );
+      expect(deps.tokenRepository.saveToken).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: 'u1',
+          clientId: 'web-app',
+          token: 'signed-token'
+        })
+      );
+    });
 
-    expect(result.token).toContain('token:u1:web-app:');
-    expect(result.sessionId).toBeTruthy();
-    expect(tokenRepo.saved).toHaveLength(1);
-    expect(tokenRepo.saved[0].clientId).toBe('web-app');
-    expect(tokenRepo.saved[0].sessionId).toBe(result.sessionId);
-  });
+    it('should throw INVALID_CLIENT when client is not active', async () => {
+      // Arrange
+      const { useCase, deps } = buildUseCase();
+      deps.clientRegistry.isActiveClient.mockResolvedValue(false);
 
-  it('rejects invalid credentials', async () => {
-    const repo = new FakeUserRepository();
-    const hasher = new FakePasswordHasher();
-    const clientRegistry = new FakeClientRegistry(['web-app']);
-    const signer = new FakeTokenSigner();
-    const tokenRepo = new FakeTokenRepository();
-    const useCase = new LoginUser(repo, hasher, clientRegistry, signer, tokenRepo);
+      // Act
+      const execution = useCase.execute({
+        username: 'john',
+        password: 'super-secret',
+        clientId: 'invalid-client'
+      });
 
-    await repo.save(new User({ id: 'u1', username: 'john', passwordHash: 'hashed:super-secret' }));
+      // Assert
+      await expect(execution).rejects.toMatchObject({
+        code: ErrorCodes.INVALID_CLIENT,
+        status: 401
+      } as AppError);
+      expect(deps.userRepository.findByUsername).not.toHaveBeenCalled();
+    });
 
-    await expect(useCase.execute({ username: 'john', password: 'bad', clientId: 'web-app' })).rejects.toMatchObject({
-      code: ErrorCodes.INVALID_CREDENTIALS
-    } as AppError);
-  });
+    it('should throw INVALID_CREDENTIALS when user is not found', async () => {
+      // Arrange
+      const { useCase, deps } = buildUseCase();
+      deps.clientRegistry.isActiveClient.mockResolvedValue(true);
+      deps.userRepository.findByUsername.mockResolvedValue(null);
 
-  it('rejects invalid client', async () => {
-    const repo = new FakeUserRepository();
-    const hasher = new FakePasswordHasher();
-    const clientRegistry = new FakeClientRegistry(['mobile-app']);
-    const signer = new FakeTokenSigner();
-    const tokenRepo = new FakeTokenRepository();
-    const useCase = new LoginUser(repo, hasher, clientRegistry, signer, tokenRepo);
+      // Act
+      const execution = useCase.execute({
+        username: 'missing',
+        password: 'super-secret',
+        clientId: 'web-app'
+      });
 
-    await repo.save(new User({ id: 'u1', username: 'john', passwordHash: 'hashed:super-secret' }));
+      // Assert
+      await expect(execution).rejects.toMatchObject({
+        code: ErrorCodes.INVALID_CREDENTIALS,
+        status: 401
+      } as AppError);
+      expect(deps.passwordHasher.compare).not.toHaveBeenCalled();
+    });
 
-    await expect(useCase.execute({ username: 'john', password: 'super-secret', clientId: 'web-app' })).rejects.toMatchObject({
-      code: ErrorCodes.INVALID_CLIENT
-    } as AppError);
+    it('should throw INVALID_CREDENTIALS when password is invalid', async () => {
+      // Arrange
+      const { useCase, deps } = buildUseCase();
+      deps.clientRegistry.isActiveClient.mockResolvedValue(true);
+      deps.userRepository.findByUsername.mockResolvedValue(validUser);
+      deps.passwordHasher.compare.mockResolvedValue(false);
+
+      // Act
+      const execution = useCase.execute({
+        username: 'john',
+        password: 'wrong-password',
+        clientId: 'web-app'
+      });
+
+      // Assert
+      await expect(execution).rejects.toMatchObject({
+        code: ErrorCodes.INVALID_CREDENTIALS,
+        status: 401
+      } as AppError);
+      expect(deps.userClientAccessRepository.hasAccessToClientId).not.toHaveBeenCalled();
+    });
+
+    it('should throw CLIENT_ACCESS_DENIED when user has no access to client', async () => {
+      // Arrange
+      const { useCase, deps } = buildUseCase();
+      deps.clientRegistry.isActiveClient.mockResolvedValue(true);
+      deps.userRepository.findByUsername.mockResolvedValue(validUser);
+      deps.passwordHasher.compare.mockResolvedValue(true);
+      deps.userClientAccessRepository.hasAccessToClientId.mockResolvedValue(false);
+
+      // Act
+      const execution = useCase.execute({
+        username: 'john',
+        password: 'super-secret',
+        clientId: 'web-app'
+      });
+
+      // Assert
+      await expect(execution).rejects.toMatchObject({
+        code: ErrorCodes.CLIENT_ACCESS_DENIED,
+        status: 403
+      } as AppError);
+      expect(deps.tokenSigner.sign).not.toHaveBeenCalled();
+    });
   });
 });

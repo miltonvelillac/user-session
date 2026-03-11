@@ -4,6 +4,7 @@ import { PasswordHasher } from '../../domain/ports/PasswordHasher';
 import { TokenSigner } from '../../domain/ports/TokenSigner';
 import { TokenRepository } from '../../domain/ports/TokenRepository';
 import { ClientRegistry } from '../../domain/ports/ClientRegistry';
+import { UserClientAccessRepository } from '../../domain/ports/UserClientAccessRepository';
 import { AppError, ErrorCodes } from '../../shared/errors/AppError';
 
 export class LoginUser {
@@ -11,6 +12,7 @@ export class LoginUser {
     private readonly userRepository: UserRepository,
     private readonly passwordHasher: PasswordHasher,
     private readonly clientRegistry: ClientRegistry,
+    private readonly userClientAccessRepository: UserClientAccessRepository,
     private readonly tokenSigner: TokenSigner,
     private readonly tokenRepository: TokenRepository
   ) {}
@@ -48,6 +50,15 @@ export class LoginUser {
         code: ErrorCodes.INVALID_CREDENTIALS,
         message: 'Invalid credentials',
         status: 401
+      });
+    }
+
+    const hasAccess = await this.userClientAccessRepository.hasAccessToClientId(user.id, clientId);
+    if (!hasAccess) {
+      throw new AppError({
+        code: ErrorCodes.CLIENT_ACCESS_DENIED,
+        message: 'Client access denied for this user',
+        status: 403
       });
     }
 

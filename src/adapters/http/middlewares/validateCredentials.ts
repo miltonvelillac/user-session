@@ -109,3 +109,70 @@ export const validateLoginCredentials = (req: Request, _res: Response, next: Nex
 
   return next();
 };
+
+export const validateAssignClientAccessPayload = (req: Request, _res: Response, next: NextFunction): void => {
+  const { users } = req.body as {
+    users?: unknown;
+  };
+
+  const errors: Array<{ field: string; message: string }> = [];
+
+  if (!Array.isArray(users) || users.length === 0) {
+    errors.push({ field: 'users', message: 'Users list is required' });
+  }
+
+  if (Array.isArray(users)) {
+    users.forEach((entry, index) => {
+      const path = `users[${index}]`;
+      const candidate = entry as { username?: unknown; clientIds?: unknown };
+
+      if (typeof candidate.username !== 'string' || candidate.username.trim().length === 0) {
+        errors.push({ field: `${path}.username`, message: 'Username is required' });
+      }
+
+      if (typeof candidate.username === 'string') {
+        const length = candidate.username.trim().length;
+        if (length < USERNAME_MIN || length > USERNAME_MAX) {
+          errors.push({ field: `${path}.username`, message: `Username must be between ${USERNAME_MIN} and ${USERNAME_MAX} characters` });
+        }
+        if (hasSqlInjection(candidate.username)) {
+          errors.push({ field: `${path}.username`, message: 'Username contains forbidden patterns' });
+        }
+      }
+
+      if (!Array.isArray(candidate.clientIds) || candidate.clientIds.length === 0) {
+        errors.push({ field: `${path}.clientIds`, message: 'Client IDs list is required' });
+        return;
+      }
+
+      candidate.clientIds.forEach((clientId, clientIndex) => {
+        const clientPath = `${path}.clientIds[${clientIndex}]`;
+
+        if (typeof clientId !== 'string' || clientId.trim().length === 0) {
+          errors.push({ field: clientPath, message: 'Client ID is required' });
+          return;
+        }
+
+        const normalized = clientId.trim();
+        if (normalized.length < CLIENT_ID_MIN || normalized.length > CLIENT_ID_MAX) {
+          errors.push({ field: clientPath, message: `Client ID must be between ${CLIENT_ID_MIN} and ${CLIENT_ID_MAX} characters` });
+        }
+
+        if (!clientIdPattern.test(normalized)) {
+          errors.push({ field: clientPath, message: 'Client ID format is invalid' });
+        }
+
+        if (hasSqlInjection(clientId)) {
+          errors.push({ field: clientPath, message: 'Client ID contains forbidden patterns' });
+        }
+      });
+    });
+  }
+
+  throwIfValidationErrors(errors, next);
+  if (errors.length > 0) {
+    return;
+  }
+
+  return next();
+};
