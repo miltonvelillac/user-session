@@ -1,8 +1,10 @@
 import { Container } from './Container';
 import { InMemoryUserRepository } from '../repositories/InMemoryUserRepository';
 import { InMemoryTokenRepository } from '../repositories/InMemoryTokenRepository';
+import { InMemoryClientRegistry } from '../repositories/InMemoryClientRegistry';
 import { SimplePasswordHasher } from '../security/SimplePasswordHasher';
 import { JwtTokenSigner } from '../security/JwtTokenSigner';
+import { getAuthClientIds } from '../config/authClients';
 import { CreateUser } from '../../application/use-cases/CreateUser';
 import { LoginUser } from '../../application/use-cases/LoginUser';
 import { AuthController } from '../../adapters/http/controllers/AuthController';
@@ -10,6 +12,7 @@ import { AuthController } from '../../adapters/http/controllers/AuthController';
 export const TOKENS = {
   UserRepository: 'UserRepository',
   TokenRepository: 'TokenRepository',
+  ClientRegistry: 'ClientRegistry',
   PasswordHasher: 'PasswordHasher',
   TokenSigner: 'TokenSigner',
   CreateUser: 'CreateUser',
@@ -21,6 +24,7 @@ export const container = new Container();
 
 container.register(TOKENS.UserRepository, () => new InMemoryUserRepository());
 container.register(TOKENS.TokenRepository, () => new InMemoryTokenRepository());
+container.register(TOKENS.ClientRegistry, () => new InMemoryClientRegistry(getAuthClientIds()));
 container.register(TOKENS.PasswordHasher, () => new SimplePasswordHasher());
 container.register(TOKENS.TokenSigner, () => new JwtTokenSigner(process.env.JWT_SECRET || 'dev-secret'));
 
@@ -28,6 +32,7 @@ container.register(TOKENS.CreateUser, c => new CreateUser(c.resolve(TOKENS.UserR
 container.register(TOKENS.LoginUser, c => new LoginUser(
   c.resolve(TOKENS.UserRepository),
   c.resolve(TOKENS.PasswordHasher),
+  c.resolve(TOKENS.ClientRegistry),
   c.resolve(TOKENS.TokenSigner),
   c.resolve(TOKENS.TokenRepository)
 ));

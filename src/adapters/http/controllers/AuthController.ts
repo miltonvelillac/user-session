@@ -17,8 +17,8 @@ export class AuthController {
 
   login = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { username, password } = req.body as { username: string; password: string };
-      const result = await this.loginUser.execute({ username, password });
+      const { username, password, clientId } = req.body as { username: string; password: string; clientId: string };
+      const result = await this.loginUser.execute({ username, password, clientId });
       res.status(200).json({ data: result });
     } catch (error) {
       next(error);

@@ -1,18 +1,38 @@
+import crypto from 'crypto';
 import { UserRepository } from '../../domain/ports/UserRepository';
 import { PasswordHasher } from '../../domain/ports/PasswordHasher';
 import { TokenSigner } from '../../domain/ports/TokenSigner';
 import { TokenRepository } from '../../domain/ports/TokenRepository';
+import { ClientRegistry } from '../../domain/ports/ClientRegistry';
 import { AppError, ErrorCodes } from '../../shared/errors/AppError';
 
 export class LoginUser {
   constructor(
     private readonly userRepository: UserRepository,
     private readonly passwordHasher: PasswordHasher,
+    private readonly clientRegistry: ClientRegistry,
     private readonly tokenSigner: TokenSigner,
     private readonly tokenRepository: TokenRepository
   ) {}
 
-  async execute({ username, password }: { username: string; password: string }): Promise<{ token: string }> {
+  async execute({
+    username,
+    password,
+    clientId
+  }: {
+    username: string;
+    password: string;
+    clientId: string;
+  }): Promise<{ token: string; sessionId: string }> {
+    const isActiveClient = await this.clientRegistry.isActiveClient(clientId);
+    if (!isActiveClient) {
+      throw new AppError({
+        code: ErrorCodes.INVALID_CLIENT,
+        message: 'Invalid client',
+        status: 401
+      });
+    }
+
     const user = await this.userRepository.findByUsername(username);
     if (!user) {
       throw new AppError({
@@ -31,9 +51,24 @@ export class LoginUser {
       });
     }
 
-    const token = this.tokenSigner.sign({ userId: user.id, username: user.username });
-    await this.tokenRepository.saveToken({ userId: user.id, token });
+    const sessionId = crypto.randomUUID();
+    const tokenId = crypto.randomUUID();
+    const token = this.tokenSigner.sign({
+      userId: user.id,
+      username: user.username,
+      clientId,
+      sessionId,
+      tokenId
+    });
 
-    return { token };
+    await this.tokenRepository.saveToken({
+      userId: user.id,
+      clientId,
+      sessionId,
+      tokenId,
+      token
+    });
+
+    return { token, sessionId };
   }
 }
