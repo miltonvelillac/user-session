@@ -5,24 +5,28 @@ describe('buildAuthRouter', () => {
       jest.resetModules();
 
       const post = jest.fn();
-      const router = { post };
+      const get = jest.fn();
+      const router = { post, get };
       const Router = jest.fn(() => router);
 
       const validateRegisterCredentials = jest.fn();
       const validateAssignClientAccessPayload = jest.fn();
       const validateLoginCredentials = jest.fn();
       const validateUserRolesPayload = jest.fn();
+      const validateGetUserRolesParams = jest.fn();
       const authenticateRequest = jest.fn();
       const registerRoleGuard = jest.fn();
       const assignRoleGuard = jest.fn();
       const addRolesGuard = jest.fn();
       const removeRolesGuard = jest.fn();
+      const getRolesGuard = jest.fn();
       const authorizeRoles = jest
         .fn()
         .mockReturnValueOnce(registerRoleGuard)
         .mockReturnValueOnce(assignRoleGuard)
         .mockReturnValueOnce(addRolesGuard)
-        .mockReturnValueOnce(removeRolesGuard);
+        .mockReturnValueOnce(removeRolesGuard)
+        .mockReturnValueOnce(getRolesGuard);
       const getRegisterAllowedRoles = jest.fn(() => ['admin']);
       const getAssignClientAccessAllowedRoles = jest.fn(() => ['admin', 'super-admin']);
       const getManageUserRolesAllowedRoles = jest.fn(() => ['super-admin']);
@@ -32,6 +36,7 @@ describe('buildAuthRouter', () => {
         assignClientAccess: jest.fn(),
         addRoles: jest.fn(),
         removeRoles: jest.fn(),
+        getUserRoles: jest.fn(),
         login: jest.fn()
       };
 
@@ -43,7 +48,8 @@ describe('buildAuthRouter', () => {
           validateRegisterCredentials,
           validateAssignClientAccessPayload,
           validateLoginCredentials,
-          validateUserRolesPayload
+          validateUserRolesPayload,
+          validateGetUserRolesParams
         }));
         jest.doMock('../src/adapters/http/middlewares/authorization', () => ({
           authenticateRequest,
@@ -70,7 +76,9 @@ describe('buildAuthRouter', () => {
       expect(authorizeRoles).toHaveBeenNthCalledWith(2, ['admin', 'super-admin']);
       expect(authorizeRoles).toHaveBeenNthCalledWith(3, ['super-admin']);
       expect(authorizeRoles).toHaveBeenNthCalledWith(4, ['super-admin']);
+      expect(authorizeRoles).toHaveBeenNthCalledWith(5, ['super-admin']);
       expect(post).toHaveBeenCalledTimes(5);
+      expect(get).toHaveBeenCalledTimes(1);
       expect(post).toHaveBeenNthCalledWith(
         1,
         '/users',
@@ -104,6 +112,14 @@ describe('buildAuthRouter', () => {
         authController.removeRoles
       );
       expect(post).toHaveBeenNthCalledWith(5, '/login', validateLoginCredentials, authController.login);
+      expect(get).toHaveBeenNthCalledWith(
+        1,
+        '/users/:username/roles',
+        authenticateRequest,
+        getRolesGuard,
+        validateGetUserRolesParams,
+        authController.getUserRoles
+      );
       expect(result).toBe(router);
     });
   });

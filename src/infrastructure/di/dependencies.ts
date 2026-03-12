@@ -11,6 +11,7 @@ import { LoginUser } from '../../application/use-cases/LoginUser';
 import { AssignUserClientAccess } from '../../application/use-cases/AssignUserClientAccess';
 import { AddUserRoles } from '../../application/use-cases/AddUserRoles';
 import { RemoveUserRoles } from '../../application/use-cases/RemoveUserRoles';
+import { GetUserRoles } from '../../application/use-cases/GetUserRoles';
 import { AuthController } from '../../adapters/http/controllers/AuthController';
 
 export const TOKENS = {
@@ -25,6 +26,7 @@ export const TOKENS = {
   AssignUserClientAccess: 'AssignUserClientAccess',
   AddUserRoles: 'AddUserRoles',
   RemoveUserRoles: 'RemoveUserRoles',
+  GetUserRoles: 'GetUserRoles',
   LoginUser: 'LoginUser',
   AuthController: 'AuthController'
 } as const;
@@ -53,6 +55,10 @@ container.register(TOKENS.RemoveUserRoles, c => new RemoveUserRoles(
   c.resolve(TOKENS.UserRepository),
   c.resolve(TOKENS.UserRoleRepository)
 ));
+container.register(TOKENS.GetUserRoles, c => new GetUserRoles(
+  c.resolve(TOKENS.UserRepository),
+  c.resolve(TOKENS.UserRoleRepository)
+));
 container.register(TOKENS.LoginUser, c => new LoginUser(
   c.resolve(TOKENS.UserRepository),
   c.resolve(TOKENS.PasswordHasher),
@@ -67,5 +73,6 @@ container.register(TOKENS.AuthController, c => new AuthController(
   c.resolve(TOKENS.LoginUser),
   c.resolve(TOKENS.AssignUserClientAccess),
   c.resolve(TOKENS.AddUserRoles),
-  c.resolve(TOKENS.RemoveUserRoles)
+  c.resolve(TOKENS.RemoveUserRoles),
+  c.resolve(TOKENS.GetUserRoles)
 ));

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { AuthController } from '../controllers/AuthController';
 import {
   validateAssignClientAccessPayload,
+  validateGetUserRolesParams,
   validateLoginCredentials,
   validateRegisterCredentials,
   validateUserRolesPayload
@@ -42,6 +43,12 @@ export const buildAuthRouter = (authController: AuthController): Router => {
     authorizeRoles(manageUserRolesAllowedRoles),
     validateUserRolesPayload,
     authController.removeRoles
+  );
+  router.get('/users/:username/roles',
+    authenticateRequest,
+    authorizeRoles(manageUserRolesAllowedRoles),
+    validateGetUserRolesParams,
+    authController.getUserRoles
   );
   router.post('/login', validateLoginCredentials, authController.login);
 

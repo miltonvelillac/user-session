@@ -5,6 +5,7 @@ import { LoginUser } from '../src/application/use-cases/LoginUser';
 import { AssignUserClientAccess } from '../src/application/use-cases/AssignUserClientAccess';
 import { AddUserRoles } from '../src/application/use-cases/AddUserRoles';
 import { RemoveUserRoles } from '../src/application/use-cases/RemoveUserRoles';
+import { GetUserRoles } from '../src/application/use-cases/GetUserRoles';
 
 type MockResponse = Response & {
   status: jest.Mock;
@@ -17,6 +18,7 @@ type ControllerDependencies = {
   assignUserClientAccess: { execute: jest.Mock };
   addUserRoles: { execute: jest.Mock };
   removeUserRoles: { execute: jest.Mock };
+  getUserRoles: { execute: jest.Mock };
 };
 
 const buildResponse = (): MockResponse => {
@@ -35,7 +37,8 @@ const buildController = (): { controller: AuthController; deps: ControllerDepend
     loginUser: { execute: jest.fn() },
     assignUserClientAccess: { execute: jest.fn() },
     addUserRoles: { execute: jest.fn() },
-    removeUserRoles: { execute: jest.fn() }
+    removeUserRoles: { execute: jest.fn() },
+    getUserRoles: { execute: jest.fn() }
   };
 
   const controller = new AuthController(
@@ -43,7 +46,8 @@ const buildController = (): { controller: AuthController; deps: ControllerDepend
     deps.loginUser as unknown as LoginUser,
     deps.assignUserClientAccess as unknown as AssignUserClientAccess,
     deps.addUserRoles as unknown as AddUserRoles,
-    deps.removeUserRoles as unknown as RemoveUserRoles
+    deps.removeUserRoles as unknown as RemoveUserRoles,
+    deps.getUserRoles as unknown as GetUserRoles
   );
 
   return { controller, deps };
@@ -268,6 +272,52 @@ describe('AuthController', () => {
 
       // Act
       await controller.removeRoles(request, response, next);
+
+      // Assert
+      expect(next).toHaveBeenCalledWith(error);
+    });
+  });
+
+  describe('#getUserRoles', () => {
+    it('should return 200 with user roles', async () => {
+      // Arrange
+      const { controller, deps } = buildController();
+      deps.getUserRoles.execute.mockResolvedValue({
+        userId: 'u1',
+        username: 'john',
+        roles: ['admin', 'operator']
+      });
+      const request = {
+        params: { username: 'john' }
+      } as unknown as Request;
+      const response = buildResponse();
+      const next = jest.fn() as NextFunction;
+
+      // Act
+      await controller.getUserRoles(request, response, next);
+
+      // Assert
+      expect(deps.getUserRoles.execute).toHaveBeenCalledWith({ username: 'john' });
+      expect(response.status).toHaveBeenCalledWith(200);
+      expect(response.json).toHaveBeenCalledWith({
+        data: { userId: 'u1', username: 'john', roles: ['admin', 'operator'] }
+      });
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    it('should forward execution errors to next', async () => {
+      // Arrange
+      const { controller, deps } = buildController();
+      const error = new Error('get-user-roles-error');
+      deps.getUserRoles.execute.mockRejectedValue(error);
+      const request = {
+        params: { username: 'john' }
+      } as unknown as Request;
+      const response = buildResponse();
+      const next = jest.fn() as NextFunction;
+
+      // Act
+      await controller.getUserRoles(request, response, next);
 
       // Assert
       expect(next).toHaveBeenCalledWith(error);

@@ -89,6 +89,42 @@ AUTH_ASSIGN_CLIENT_ACCESS_ALLOWED_ROLES=admin
 AUTH_MANAGE_USER_ROLES_ALLOWED_ROLES=admin
 ```
 
+## Reverse proxy y CORS
+
+Si usas reverse proxy (Nginx, Traefik, ALB), el certificado HTTPS se configura en el proxy y esta API puede correr en HTTP interno.
+
+### Caso recomendado: mismo origen (sin CORS)
+
+Ejemplo:
+- `https://miapp.com`
+- `https://miapp.com/api` -> proxy a `http://127.0.0.1:4000`
+
+Con este esquema, el navegador normalmente no requiere CORS.
+
+### Ejemplo base Nginx
+
+```nginx
+server {
+  listen 443 ssl;
+  server_name miapp.com;
+
+  ssl_certificate /etc/letsencrypt/live/miapp.com/fullchain.pem;
+  ssl_certificate_key /etc/letsencrypt/live/miapp.com/privkey.pem;
+
+  location /api/ {
+    proxy_pass http://127.0.0.1:4000/;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+}
+```
+
+### Si frontend y API estan en dominios distintos
+
+Si usas `https://app.miapp.com` y `https://api.miapp.com`, entonces si necesitas CORS y debes permitir origenes explicitos.
+No uses `*` cuando manejes credenciales o cookies.
+
 ## Ejecutar
 
 ```powershell

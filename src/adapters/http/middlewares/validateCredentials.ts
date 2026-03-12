@@ -238,3 +238,17 @@ export const validateUserRolesPayload = (req: Request, _res: Response, next: Nex
 
   return next();
 };
+
+export const validateGetUserRolesParams = (req: Request, _res: Response, next: NextFunction): void => {
+  const { username } = req.params as { username?: unknown };
+  const errors: Array<{ field: string; message: string }> = [];
+
+  validateUsername(username, errors, 'username');
+
+  throwIfValidationErrors(errors, next);
+  if (errors.length > 0) {
+    return;
+  }
+
+  return next();
+};
