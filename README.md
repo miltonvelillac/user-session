@@ -83,44 +83,47 @@ MASTER_KEY=TU_MASTER_KEY_BASE64
 DB_ENCRYPT=false
 DB_TRUST_SERVER_CERTIFICATE=true
 
-# HTTPS (opcional)
-HTTPS_ENABLED=false
-HTTPS_KEY_PATH=certs/localhost-key.pem
-HTTPS_CERT_PATH=certs/localhost-cert.pem
-# HTTPS_PASSPHRASE=si-tu-clave-privada-tiene-passphrase
-
 AUTH_CLIENT_IDS=testapp
 AUTH_REGISTER_ALLOWED_ROLES=admin
 AUTH_ASSIGN_CLIENT_ACCESS_ALLOWED_ROLES=admin
 AUTH_MANAGE_USER_ROLES_ALLOWED_ROLES=admin
 ```
 
-## HTTPS para cifrar trafico
+## Reverse proxy y CORS
 
-Si ejecutas la API de forma directa (sin reverse proxy), puedes habilitar TLS en el servidor Express:
+Si usas reverse proxy (Nginx, Traefik, ALB), el certificado HTTPS se configura en el proxy y esta API puede correr en HTTP interno.
 
-1. Genera certificados (ejemplo con `mkcert`):
+### Caso recomendado: mismo origen (sin CORS)
 
-```powershell
-mkcert -install
-mkcert -key-file certs/localhost-key.pem -cert-file certs/localhost-cert.pem localhost 127.0.0.1 ::1
+Ejemplo:
+- `https://miapp.com`
+- `https://miapp.com/api` -> proxy a `http://127.0.0.1:4000`
+
+Con este esquema, el navegador normalmente no requiere CORS.
+
+### Ejemplo base Nginx
+
+```nginx
+server {
+  listen 443 ssl;
+  server_name miapp.com;
+
+  ssl_certificate /etc/letsencrypt/live/miapp.com/fullchain.pem;
+  ssl_certificate_key /etc/letsencrypt/live/miapp.com/privkey.pem;
+
+  location /api/ {
+    proxy_pass http://127.0.0.1:4000/;
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+  }
+}
 ```
 
-2. Configura el `.env`:
+### Si frontend y API estan en dominios distintos
 
-```env
-HTTPS_ENABLED=true
-HTTPS_KEY_PATH=certs/localhost-key.pem
-HTTPS_CERT_PATH=certs/localhost-cert.pem
-```
-
-3. Levanta la app normalmente:
-
-```powershell
-npm run dev
-```
-
-Con esto quedara disponible en `https://localhost:<PORT>`.
+Si usas `https://app.miapp.com` y `https://api.miapp.com`, entonces si necesitas CORS y debes permitir origenes explicitos.
+No uses `*` cuando manejes credenciales o cookies.
 
 ## Ejecutar
 
