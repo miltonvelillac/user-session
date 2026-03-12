@@ -16,6 +16,58 @@ const rolePattern = /^[a-z][a-z0-9_-]*$/;
 
 const hasSqlInjection = (value: string): boolean => sqlPattern.test(value);
 
+const validateUsername = (
+  username: unknown,
+  errors: Array<{ field: string; message: string }>,
+  field: string = 'username'
+): void => {
+  if (typeof username !== 'string' || username.trim().length === 0) {
+    errors.push({ field, message: 'Username is required' });
+    return;
+  }
+
+  const length = username.trim().length;
+  if (length < USERNAME_MIN || length > USERNAME_MAX) {
+    errors.push({ field, message: `Username must be between ${USERNAME_MIN} and ${USERNAME_MAX} characters` });
+  }
+  if (hasSqlInjection(username)) {
+    errors.push({ field, message: 'Username contains forbidden patterns' });
+  }
+};
+
+const validateRolesArray = (
+  roles: unknown,
+  errors: Array<{ field: string; message: string }>,
+  fieldPrefix: string = 'roles'
+): void => {
+  if (!Array.isArray(roles) || roles.length === 0) {
+    errors.push({ field: fieldPrefix, message: 'Roles list is required' });
+    return;
+  }
+
+  roles.forEach((role, index) => {
+    const field = `${fieldPrefix}[${index}]`;
+
+    if (typeof role !== 'string' || role.trim().length === 0) {
+      errors.push({ field, message: 'Role is required' });
+      return;
+    }
+
+    const normalized = role.trim();
+    if (normalized.length < ROLE_MIN || normalized.length > ROLE_MAX) {
+      errors.push({ field, message: `Role must be between ${ROLE_MIN} and ${ROLE_MAX} characters` });
+    }
+
+    if (!rolePattern.test(normalized)) {
+      errors.push({ field, message: 'Role format is invalid' });
+    }
+
+    if (hasSqlInjection(role)) {
+      errors.push({ field, message: 'Role contains forbidden patterns' });
+    }
+  });
+};
+
 const validateBaseCredentials = (username: unknown, password: unknown): Array<{ field: string; message: string }> => {
   const errors: Array<{ field: string; message: string }> = [];
 
@@ -68,34 +120,7 @@ const throwIfValidationErrors = (
 export const validateRegisterCredentials = (req: Request, _res: Response, next: NextFunction): void => {
   const { username, password, roles } = req.body as { username?: unknown; password?: unknown; roles?: unknown };
   const errors = validateBaseCredentials(username, password);
-
-  if (!Array.isArray(roles) || roles.length === 0) {
-    errors.push({ field: 'roles', message: 'Roles list is required' });
-  }
-
-  if (Array.isArray(roles)) {
-    roles.forEach((role, index) => {
-      const field = `roles[${index}]`;
-
-      if (typeof role !== 'string' || role.trim().length === 0) {
-        errors.push({ field, message: 'Role is required' });
-        return;
-      }
-
-      const normalized = role.trim();
-      if (normalized.length < ROLE_MIN || normalized.length > ROLE_MAX) {
-        errors.push({ field, message: `Role must be between ${ROLE_MIN} and ${ROLE_MAX} characters` });
-      }
-
-      if (!rolePattern.test(normalized)) {
-        errors.push({ field, message: 'Role format is invalid' });
-      }
-
-      if (hasSqlInjection(role)) {
-        errors.push({ field, message: 'Role contains forbidden patterns' });
-      }
-    });
-  }
+  validateRolesArray(roles, errors);
 
   throwIfValidationErrors(errors, next);
   if (errors.length > 0) {
@@ -157,20 +182,7 @@ export const validateAssignClientAccessPayload = (req: Request, _res: Response, 
     users.forEach((entry, index) => {
       const path = `users[${index}]`;
       const candidate = entry as { username?: unknown; clientIds?: unknown };
-
-      if (typeof candidate.username !== 'string' || candidate.username.trim().length === 0) {
-        errors.push({ field: `${path}.username`, message: 'Username is required' });
-      }
-
-      if (typeof candidate.username === 'string') {
-        const length = candidate.username.trim().length;
-        if (length < USERNAME_MIN || length > USERNAME_MAX) {
-          errors.push({ field: `${path}.username`, message: `Username must be between ${USERNAME_MIN} and ${USERNAME_MAX} characters` });
-        }
-        if (hasSqlInjection(candidate.username)) {
-          errors.push({ field: `${path}.username`, message: 'Username contains forbidden patterns' });
-        }
-      }
+      validateUsername(candidate.username, errors, `${path}.username`);
 
       if (!Array.isArray(candidate.clientIds) || candidate.clientIds.length === 0) {
         errors.push({ field: `${path}.clientIds`, message: 'Client IDs list is required' });
@@ -200,6 +212,24 @@ export const validateAssignClientAccessPayload = (req: Request, _res: Response, 
       });
     });
   }
+
+  throwIfValidationErrors(errors, next);
+  if (errors.length > 0) {
+    return;
+  }
+
+  return next();
+};
+
+export const validateUserRolesPayload = (req: Request, _res: Response, next: NextFunction): void => {
+  const { username, roles } = req.body as {
+    username?: unknown;
+    roles?: unknown;
+  };
+
+  const errors: Array<{ field: string; message: string }> = [];
+  validateUsername(username, errors);
+  validateRolesArray(roles, errors);
 
   throwIfValidationErrors(errors, next);
   if (errors.length > 0) {

@@ -3,11 +3,13 @@ import { AuthController } from '../controllers/AuthController';
 import {
   validateAssignClientAccessPayload,
   validateLoginCredentials,
-  validateRegisterCredentials
+  validateRegisterCredentials,
+  validateUserRolesPayload
 } from '../middlewares/validateCredentials';
 import { authenticateRequest, authorizeRoles } from '../middlewares/authorization';
 import {
   getAssignClientAccessAllowedRoles,
+  getManageUserRolesAllowedRoles,
   getRegisterAllowedRoles
 } from '../../../infrastructure/config/authorization';
 
@@ -15,6 +17,7 @@ export const buildAuthRouter = (authController: AuthController): Router => {
   const router = Router();
   const registerAllowedRoles = getRegisterAllowedRoles();
   const assignClientAccessAllowedRoles = getAssignClientAccessAllowedRoles();
+  const manageUserRolesAllowedRoles = getManageUserRolesAllowedRoles();
 
   router.post('/users',
     authenticateRequest,
@@ -27,6 +30,18 @@ export const buildAuthRouter = (authController: AuthController): Router => {
     authorizeRoles(assignClientAccessAllowedRoles),
     validateAssignClientAccessPayload,
     authController.assignClientAccess
+  );
+  router.post('/users/roles/add',
+    authenticateRequest,
+    authorizeRoles(manageUserRolesAllowedRoles),
+    validateUserRolesPayload,
+    authController.addRoles
+  );
+  router.post('/users/roles/remove',
+    authenticateRequest,
+    authorizeRoles(manageUserRolesAllowedRoles),
+    validateUserRolesPayload,
+    authController.removeRoles
   );
   router.post('/login', validateLoginCredentials, authController.login);
 

@@ -18,10 +18,13 @@ const loadDependenciesModule = (jwtSecret?: string): ModuleContext => {
   const SqlServerTokenRepository = jest.fn();
   const SqlServerClientRegistry = jest.fn();
   const SqlServerUserClientAccessRepository = jest.fn();
+  const SqlServerUserRoleRepository = jest.fn();
   const SimplePasswordHasher = jest.fn();
   const JwtTokenSigner = jest.fn();
   const CreateUser = jest.fn();
   const AssignUserClientAccess = jest.fn();
+  const AddUserRoles = jest.fn();
+  const RemoveUserRoles = jest.fn();
   const LoginUser = jest.fn();
   const AuthController = jest.fn();
 
@@ -39,10 +42,13 @@ const loadDependenciesModule = (jwtSecret?: string): ModuleContext => {
     jest.doMock('../src/infrastructure/repositories/SqlServerTokenRepository', () => ({ SqlServerTokenRepository }));
     jest.doMock('../src/infrastructure/repositories/SqlServerClientRegistry', () => ({ SqlServerClientRegistry }));
     jest.doMock('../src/infrastructure/repositories/SqlServerUserClientAccessRepository', () => ({ SqlServerUserClientAccessRepository }));
+    jest.doMock('../src/infrastructure/repositories/SqlServerUserRoleRepository', () => ({ SqlServerUserRoleRepository }));
     jest.doMock('../src/infrastructure/security/SimplePasswordHasher', () => ({ SimplePasswordHasher }));
     jest.doMock('../src/infrastructure/security/JwtTokenSigner', () => ({ JwtTokenSigner }));
     jest.doMock('../src/application/use-cases/CreateUser', () => ({ CreateUser }));
     jest.doMock('../src/application/use-cases/AssignUserClientAccess', () => ({ AssignUserClientAccess }));
+    jest.doMock('../src/application/use-cases/AddUserRoles', () => ({ AddUserRoles }));
+    jest.doMock('../src/application/use-cases/RemoveUserRoles', () => ({ RemoveUserRoles }));
     jest.doMock('../src/application/use-cases/LoginUser', () => ({ LoginUser }));
     jest.doMock('../src/adapters/http/controllers/AuthController', () => ({ AuthController }));
 
@@ -57,10 +63,13 @@ const loadDependenciesModule = (jwtSecret?: string): ModuleContext => {
       SqlServerTokenRepository,
       SqlServerClientRegistry,
       SqlServerUserClientAccessRepository,
+      SqlServerUserRoleRepository,
       SimplePasswordHasher,
       JwtTokenSigner,
       CreateUser,
       AssignUserClientAccess,
+      AddUserRoles,
+      RemoveUserRoles,
       LoginUser,
       AuthController
     }
@@ -91,10 +100,13 @@ describe('dependencies.ts', () => {
         dependenciesModule.TOKENS.TokenRepository,
         dependenciesModule.TOKENS.ClientRegistry,
         dependenciesModule.TOKENS.UserClientAccessRepository,
+        dependenciesModule.TOKENS.UserRoleRepository,
         dependenciesModule.TOKENS.PasswordHasher,
         dependenciesModule.TOKENS.TokenSigner,
         dependenciesModule.TOKENS.CreateUser,
         dependenciesModule.TOKENS.AssignUserClientAccess,
+        dependenciesModule.TOKENS.AddUserRoles,
+        dependenciesModule.TOKENS.RemoveUserRoles,
         dependenciesModule.TOKENS.LoginUser,
         dependenciesModule.TOKENS.AuthController
       ]);
@@ -180,6 +192,20 @@ describe('dependencies.ts', () => {
 
       // Assert
       expect(constructors.SqlServerUserClientAccessRepository).toHaveBeenCalledWith();
+    });
+  });
+
+  describe('#UserRoleRepository factory', () => {
+    it('should create SQL Server user-role repository', () => {
+      // Arrange
+      const { dependenciesModule, register, constructors } = loadDependenciesModule();
+      const roleRepositoryFactory = getFactoryFromRegisterCalls(register, dependenciesModule.TOKENS.UserRoleRepository);
+
+      // Act
+      roleRepositoryFactory({ resolve: jest.fn() } as unknown as { resolve: jest.Mock });
+
+      // Assert
+      expect(constructors.SqlServerUserRoleRepository).toHaveBeenCalledWith();
     });
   });
 
@@ -283,6 +309,50 @@ describe('dependencies.ts', () => {
     });
   });
 
+  describe('#AddUserRoles factory', () => {
+    it('should resolve and inject required dependencies', () => {
+      // Arrange
+      const { dependenciesModule, register, constructors } = loadDependenciesModule();
+      const addRolesFactory = getFactoryFromRegisterCalls(register, dependenciesModule.TOKENS.AddUserRoles);
+      const userRepository = { name: 'user-repo' };
+      const userRoleRepository = { name: 'user-role-repo' };
+      const resolve = jest
+        .fn()
+        .mockReturnValueOnce(userRepository)
+        .mockReturnValueOnce(userRoleRepository);
+
+      // Act
+      addRolesFactory({ resolve } as unknown as { resolve: jest.Mock });
+
+      // Assert
+      expect(resolve).toHaveBeenNthCalledWith(1, dependenciesModule.TOKENS.UserRepository);
+      expect(resolve).toHaveBeenNthCalledWith(2, dependenciesModule.TOKENS.UserRoleRepository);
+      expect(constructors.AddUserRoles).toHaveBeenCalledWith(userRepository, userRoleRepository);
+    });
+  });
+
+  describe('#RemoveUserRoles factory', () => {
+    it('should resolve and inject required dependencies', () => {
+      // Arrange
+      const { dependenciesModule, register, constructors } = loadDependenciesModule();
+      const removeRolesFactory = getFactoryFromRegisterCalls(register, dependenciesModule.TOKENS.RemoveUserRoles);
+      const userRepository = { name: 'user-repo' };
+      const userRoleRepository = { name: 'user-role-repo' };
+      const resolve = jest
+        .fn()
+        .mockReturnValueOnce(userRepository)
+        .mockReturnValueOnce(userRoleRepository);
+
+      // Act
+      removeRolesFactory({ resolve } as unknown as { resolve: jest.Mock });
+
+      // Assert
+      expect(resolve).toHaveBeenNthCalledWith(1, dependenciesModule.TOKENS.UserRepository);
+      expect(resolve).toHaveBeenNthCalledWith(2, dependenciesModule.TOKENS.UserRoleRepository);
+      expect(constructors.RemoveUserRoles).toHaveBeenCalledWith(userRepository, userRoleRepository);
+    });
+  });
+
   describe('#AuthController factory', () => {
     it('should resolve and inject use-cases', () => {
       // Arrange
@@ -291,11 +361,15 @@ describe('dependencies.ts', () => {
       const createUser = { name: 'create-user' };
       const loginUser = { name: 'login-user' };
       const assignUserClientAccess = { name: 'assign-user-client-access' };
+      const addUserRoles = { name: 'add-user-roles' };
+      const removeUserRoles = { name: 'remove-user-roles' };
       const resolve = jest
         .fn()
         .mockReturnValueOnce(createUser)
         .mockReturnValueOnce(loginUser)
-        .mockReturnValueOnce(assignUserClientAccess);
+        .mockReturnValueOnce(assignUserClientAccess)
+        .mockReturnValueOnce(addUserRoles)
+        .mockReturnValueOnce(removeUserRoles);
 
       // Act
       authControllerFactory({ resolve } as unknown as { resolve: jest.Mock });
@@ -304,7 +378,15 @@ describe('dependencies.ts', () => {
       expect(resolve).toHaveBeenNthCalledWith(1, dependenciesModule.TOKENS.CreateUser);
       expect(resolve).toHaveBeenNthCalledWith(2, dependenciesModule.TOKENS.LoginUser);
       expect(resolve).toHaveBeenNthCalledWith(3, dependenciesModule.TOKENS.AssignUserClientAccess);
-      expect(constructors.AuthController).toHaveBeenCalledWith(createUser, loginUser, assignUserClientAccess);
+      expect(resolve).toHaveBeenNthCalledWith(4, dependenciesModule.TOKENS.AddUserRoles);
+      expect(resolve).toHaveBeenNthCalledWith(5, dependenciesModule.TOKENS.RemoveUserRoles);
+      expect(constructors.AuthController).toHaveBeenCalledWith(
+        createUser,
+        loginUser,
+        assignUserClientAccess,
+        addUserRoles,
+        removeUserRoles
+      );
     });
   });
 });

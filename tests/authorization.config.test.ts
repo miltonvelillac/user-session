@@ -1,4 +1,8 @@
-import { getAssignClientAccessAllowedRoles, getRegisterAllowedRoles } from '../src/infrastructure/config/authorization';
+import {
+  getAssignClientAccessAllowedRoles,
+  getManageUserRolesAllowedRoles,
+  getRegisterAllowedRoles
+} from '../src/infrastructure/config/authorization';
 
 describe('authorization config', () => {
   describe('#getRegisterAllowedRoles', () => {
@@ -46,6 +50,30 @@ describe('authorization config', () => {
 
       // Assert
       expect(roles).toEqual(['admin']);
+    });
+  });
+
+  describe('#getManageUserRolesAllowedRoles', () => {
+    it('should return default roles when env var is missing', () => {
+      // Arrange
+      delete process.env.AUTH_MANAGE_USER_ROLES_ALLOWED_ROLES;
+
+      // Act
+      const roles = getManageUserRolesAllowedRoles();
+
+      // Assert
+      expect(roles).toEqual(['admin']);
+    });
+
+    it('should parse and normalize roles from env', () => {
+      // Arrange
+      process.env.AUTH_MANAGE_USER_ROLES_ALLOWED_ROLES = 'super-admin, admin,super-admin';
+
+      // Act
+      const roles = getManageUserRolesAllowedRoles();
+
+      // Assert
+      expect(roles).toEqual(['super-admin', 'admin']);
     });
   });
 });

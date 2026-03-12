@@ -18,3 +18,7 @@ export const getRegisterAllowedRoles = (): string[] => {
 export const getAssignClientAccessAllowedRoles = (): string[] => {
   return parseAllowedRoles(process.env.AUTH_ASSIGN_CLIENT_ACCESS_ALLOWED_ROLES, ['admin']);
 };
+
+export const getManageUserRolesAllowedRoles = (): string[] => {
+  return parseAllowedRoles(process.env.AUTH_MANAGE_USER_ROLES_ALLOWED_ROLES, ['admin']);
+};

@@ -3,6 +3,8 @@ import { AuthController } from '../src/adapters/http/controllers/AuthController'
 import { CreateUser } from '../src/application/use-cases/CreateUser';
 import { LoginUser } from '../src/application/use-cases/LoginUser';
 import { AssignUserClientAccess } from '../src/application/use-cases/AssignUserClientAccess';
+import { AddUserRoles } from '../src/application/use-cases/AddUserRoles';
+import { RemoveUserRoles } from '../src/application/use-cases/RemoveUserRoles';
 
 type MockResponse = Response & {
   status: jest.Mock;
@@ -13,6 +15,8 @@ type ControllerDependencies = {
   createUser: { execute: jest.Mock };
   loginUser: { execute: jest.Mock };
   assignUserClientAccess: { execute: jest.Mock };
+  addUserRoles: { execute: jest.Mock };
+  removeUserRoles: { execute: jest.Mock };
 };
 
 const buildResponse = (): MockResponse => {
@@ -29,13 +33,17 @@ const buildController = (): { controller: AuthController; deps: ControllerDepend
   const deps: ControllerDependencies = {
     createUser: { execute: jest.fn() },
     loginUser: { execute: jest.fn() },
-    assignUserClientAccess: { execute: jest.fn() }
+    assignUserClientAccess: { execute: jest.fn() },
+    addUserRoles: { execute: jest.fn() },
+    removeUserRoles: { execute: jest.fn() }
   };
 
   const controller = new AuthController(
     deps.createUser as unknown as CreateUser,
     deps.loginUser as unknown as LoginUser,
-    deps.assignUserClientAccess as unknown as AssignUserClientAccess
+    deps.assignUserClientAccess as unknown as AssignUserClientAccess,
+    deps.addUserRoles as unknown as AddUserRoles,
+    deps.removeUserRoles as unknown as RemoveUserRoles
   );
 
   return { controller, deps };
@@ -162,6 +170,104 @@ describe('AuthController', () => {
 
       // Act
       await controller.assignClientAccess(request, response, next);
+
+      // Assert
+      expect(next).toHaveBeenCalledWith(error);
+    });
+  });
+
+  describe('#addRoles', () => {
+    it('should return 200 with updated user roles', async () => {
+      // Arrange
+      const { controller, deps } = buildController();
+      deps.addUserRoles.execute.mockResolvedValue({
+        userId: 'u1',
+        username: 'john',
+        roles: ['admin', 'operator']
+      });
+      const request = {
+        body: { username: 'john', roles: ['operator'] }
+      } as Request;
+      const response = buildResponse();
+      const next = jest.fn() as NextFunction;
+
+      // Act
+      await controller.addRoles(request, response, next);
+
+      // Assert
+      expect(deps.addUserRoles.execute).toHaveBeenCalledWith({
+        username: 'john',
+        roles: ['operator']
+      });
+      expect(response.status).toHaveBeenCalledWith(200);
+      expect(response.json).toHaveBeenCalledWith({
+        data: { userId: 'u1', username: 'john', roles: ['admin', 'operator'] }
+      });
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    it('should forward execution errors to next', async () => {
+      // Arrange
+      const { controller, deps } = buildController();
+      const error = new Error('add-roles-error');
+      deps.addUserRoles.execute.mockRejectedValue(error);
+      const request = {
+        body: { username: 'john', roles: ['operator'] }
+      } as Request;
+      const response = buildResponse();
+      const next = jest.fn() as NextFunction;
+
+      // Act
+      await controller.addRoles(request, response, next);
+
+      // Assert
+      expect(next).toHaveBeenCalledWith(error);
+    });
+  });
+
+  describe('#removeRoles', () => {
+    it('should return 200 with updated user roles', async () => {
+      // Arrange
+      const { controller, deps } = buildController();
+      deps.removeUserRoles.execute.mockResolvedValue({
+        userId: 'u1',
+        username: 'john',
+        roles: ['admin']
+      });
+      const request = {
+        body: { username: 'john', roles: ['operator'] }
+      } as Request;
+      const response = buildResponse();
+      const next = jest.fn() as NextFunction;
+
+      // Act
+      await controller.removeRoles(request, response, next);
+
+      // Assert
+      expect(deps.removeUserRoles.execute).toHaveBeenCalledWith({
+        username: 'john',
+        roles: ['operator']
+      });
+      expect(response.status).toHaveBeenCalledWith(200);
+      expect(response.json).toHaveBeenCalledWith({
+        data: { userId: 'u1', username: 'john', roles: ['admin'] }
+      });
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    it('should forward execution errors to next', async () => {
+      // Arrange
+      const { controller, deps } = buildController();
+      const error = new Error('remove-roles-error');
+      deps.removeUserRoles.execute.mockRejectedValue(error);
+      const request = {
+        body: { username: 'john', roles: ['operator'] }
+      } as Request;
+      const response = buildResponse();
+      const next = jest.fn() as NextFunction;
+
+      // Act
+      await controller.removeRoles(request, response, next);
 
       // Assert
       expect(next).toHaveBeenCalledWith(error);

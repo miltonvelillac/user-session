@@ -11,19 +11,27 @@ describe('buildAuthRouter', () => {
       const validateRegisterCredentials = jest.fn();
       const validateAssignClientAccessPayload = jest.fn();
       const validateLoginCredentials = jest.fn();
+      const validateUserRolesPayload = jest.fn();
       const authenticateRequest = jest.fn();
       const registerRoleGuard = jest.fn();
       const assignRoleGuard = jest.fn();
+      const addRolesGuard = jest.fn();
+      const removeRolesGuard = jest.fn();
       const authorizeRoles = jest
         .fn()
         .mockReturnValueOnce(registerRoleGuard)
-        .mockReturnValueOnce(assignRoleGuard);
+        .mockReturnValueOnce(assignRoleGuard)
+        .mockReturnValueOnce(addRolesGuard)
+        .mockReturnValueOnce(removeRolesGuard);
       const getRegisterAllowedRoles = jest.fn(() => ['admin']);
       const getAssignClientAccessAllowedRoles = jest.fn(() => ['admin', 'super-admin']);
+      const getManageUserRolesAllowedRoles = jest.fn(() => ['super-admin']);
 
       const authController = {
         register: jest.fn(),
         assignClientAccess: jest.fn(),
+        addRoles: jest.fn(),
+        removeRoles: jest.fn(),
         login: jest.fn()
       };
 
@@ -34,7 +42,8 @@ describe('buildAuthRouter', () => {
         jest.doMock('../src/adapters/http/middlewares/validateCredentials', () => ({
           validateRegisterCredentials,
           validateAssignClientAccessPayload,
-          validateLoginCredentials
+          validateLoginCredentials,
+          validateUserRolesPayload
         }));
         jest.doMock('../src/adapters/http/middlewares/authorization', () => ({
           authenticateRequest,
@@ -42,7 +51,8 @@ describe('buildAuthRouter', () => {
         }));
         jest.doMock('../src/infrastructure/config/authorization', () => ({
           getRegisterAllowedRoles,
-          getAssignClientAccessAllowedRoles
+          getAssignClientAccessAllowedRoles,
+          getManageUserRolesAllowedRoles
         }));
 
         ({ buildAuthRouter } = require('../src/adapters/http/routes/authRoutes'));
@@ -55,9 +65,12 @@ describe('buildAuthRouter', () => {
       expect(Router).toHaveBeenCalledTimes(1);
       expect(getRegisterAllowedRoles).toHaveBeenCalledTimes(1);
       expect(getAssignClientAccessAllowedRoles).toHaveBeenCalledTimes(1);
+      expect(getManageUserRolesAllowedRoles).toHaveBeenCalledTimes(1);
       expect(authorizeRoles).toHaveBeenNthCalledWith(1, ['admin']);
       expect(authorizeRoles).toHaveBeenNthCalledWith(2, ['admin', 'super-admin']);
-      expect(post).toHaveBeenCalledTimes(3);
+      expect(authorizeRoles).toHaveBeenNthCalledWith(3, ['super-admin']);
+      expect(authorizeRoles).toHaveBeenNthCalledWith(4, ['super-admin']);
+      expect(post).toHaveBeenCalledTimes(5);
       expect(post).toHaveBeenNthCalledWith(
         1,
         '/users',
@@ -74,7 +87,23 @@ describe('buildAuthRouter', () => {
         validateAssignClientAccessPayload,
         authController.assignClientAccess
       );
-      expect(post).toHaveBeenNthCalledWith(3, '/login', validateLoginCredentials, authController.login);
+      expect(post).toHaveBeenNthCalledWith(
+        3,
+        '/users/roles/add',
+        authenticateRequest,
+        addRolesGuard,
+        validateUserRolesPayload,
+        authController.addRoles
+      );
+      expect(post).toHaveBeenNthCalledWith(
+        4,
+        '/users/roles/remove',
+        authenticateRequest,
+        removeRolesGuard,
+        validateUserRolesPayload,
+        authController.removeRoles
+      );
+      expect(post).toHaveBeenNthCalledWith(5, '/login', validateLoginCredentials, authController.login);
       expect(result).toBe(router);
     });
   });

@@ -2,7 +2,8 @@ import { NextFunction, Request, Response } from 'express';
 import {
   validateAssignClientAccessPayload,
   validateLoginCredentials,
-  validateRegisterCredentials
+  validateRegisterCredentials,
+  validateUserRolesPayload
 } from '../src/adapters/http/middlewares/validateCredentials';
 import { AppError, ErrorCodes } from '../src/shared/errors/AppError';
 
@@ -256,6 +257,68 @@ describe('validateCredentials middleware', () => {
             field: 'users[0].clientIds[0]',
             message: 'Client ID format is invalid'
           })
+        ])
+      );
+    });
+  });
+
+  describe('#validateUserRolesPayload', () => {
+    it('should call next without error for a valid payload', () => {
+      // Arrange
+      const body = { username: 'john', roles: ['admin'] };
+
+      // Act
+      const { next, error } = executeMiddleware(validateUserRolesPayload, body);
+
+      // Assert
+      expect(error).toBeUndefined();
+      expect(next).toHaveBeenCalledWith();
+    });
+
+    it('should return VALIDATION_ERROR when username is missing', () => {
+      // Arrange
+      const body = { roles: ['admin'] };
+
+      // Act
+      const { error } = executeMiddleware(validateUserRolesPayload, body);
+
+      // Assert
+      expect(error?.code).toBe(ErrorCodes.VALIDATION_ERROR);
+      expect(error?.details).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ field: 'username', message: 'Username is required' })
+        ])
+      );
+    });
+
+    it('should return VALIDATION_ERROR when roles are missing', () => {
+      // Arrange
+      const body = { username: 'john' };
+
+      // Act
+      const { error } = executeMiddleware(validateUserRolesPayload, body);
+
+      // Assert
+      expect(error?.code).toBe(ErrorCodes.VALIDATION_ERROR);
+      expect(error?.details).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ field: 'roles', message: 'Roles list is required' })
+        ])
+      );
+    });
+
+    it('should return VALIDATION_ERROR when role contains forbidden patterns', () => {
+      // Arrange
+      const body = { username: 'john', roles: ['admin; DROP TABLE auth.Users'] };
+
+      // Act
+      const { error } = executeMiddleware(validateUserRolesPayload, body);
+
+      // Assert
+      expect(error?.code).toBe(ErrorCodes.VALIDATION_ERROR);
+      expect(error?.details).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ field: 'roles[0]', message: 'Role contains forbidden patterns' })
         ])
       );
     });
