@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 import {
   validateAssignClientAccessPayload,
+  validateGetUserRolesParams,
   validateLoginCredentials,
   validateRegisterCredentials,
   validateUserRolesPayload
@@ -9,8 +10,11 @@ import { AppError, ErrorCodes } from '../src/shared/errors/AppError';
 
 type Middleware = (req: Request, res: Response, next: NextFunction) => void;
 
-const executeMiddleware = (middleware: Middleware, body: unknown): { next: jest.Mock; error?: AppError } => {
-  const request = { body } as Request;
+const executeMiddleware = (
+  middleware: Middleware,
+  input: { body?: unknown; params?: unknown }
+): { next: jest.Mock; error?: AppError } => {
+  const request = { body: input.body ?? {}, params: input.params ?? {} } as Request;
   const response = {} as Response;
   const nextMock = jest.fn();
   const next = nextMock as unknown as NextFunction;
@@ -30,7 +34,7 @@ describe('validateCredentials middleware', () => {
       const body = { username: 'john', password: 'super-secret', roles: ['admin'] };
 
       // Act
-      const { next, error } = executeMiddleware(validateRegisterCredentials, body);
+      const { next, error } = executeMiddleware(validateRegisterCredentials, { body });
 
       // Assert
       expect(error).toBeUndefined();
@@ -42,7 +46,7 @@ describe('validateCredentials middleware', () => {
       const body = { password: 'super-secret', roles: ['admin'] };
 
       // Act
-      const { error } = executeMiddleware(validateRegisterCredentials, body);
+      const { error } = executeMiddleware(validateRegisterCredentials, { body });
 
       // Assert
       expect(error).toBeInstanceOf(AppError);
@@ -54,7 +58,7 @@ describe('validateCredentials middleware', () => {
       const body = { username: 'john; DROP TABLE users', password: 'super-secret', roles: ['admin'] };
 
       // Act
-      const { error } = executeMiddleware(validateRegisterCredentials, body);
+      const { error } = executeMiddleware(validateRegisterCredentials, { body });
 
       // Assert
       expect(error?.code).toBe(ErrorCodes.VALIDATION_ERROR);
@@ -70,7 +74,7 @@ describe('validateCredentials middleware', () => {
       const body = { username: 'john', password: 'short', roles: ['admin'] };
 
       // Act
-      const { error } = executeMiddleware(validateRegisterCredentials, body);
+      const { error } = executeMiddleware(validateRegisterCredentials, { body });
 
       // Assert
       expect(error?.code).toBe(ErrorCodes.VALIDATION_ERROR);
@@ -86,7 +90,7 @@ describe('validateCredentials middleware', () => {
       const body = { username: 'john', password: 'super-secret' };
 
       // Act
-      const { error } = executeMiddleware(validateRegisterCredentials, body);
+      const { error } = executeMiddleware(validateRegisterCredentials, { body });
 
       // Assert
       expect(error?.code).toBe(ErrorCodes.VALIDATION_ERROR);
@@ -100,7 +104,7 @@ describe('validateCredentials middleware', () => {
       const body = { username: 'john', password: 'super-secret', roles: ['Admin Root'] };
 
       // Act
-      const { error } = executeMiddleware(validateRegisterCredentials, body);
+      const { error } = executeMiddleware(validateRegisterCredentials, { body });
 
       // Assert
       expect(error?.code).toBe(ErrorCodes.VALIDATION_ERROR);
@@ -118,7 +122,7 @@ describe('validateCredentials middleware', () => {
       const body = { username: 'john', password: 'super-secret', clientId: 'mobile-app' };
 
       // Act
-      const { next, error } = executeMiddleware(validateLoginCredentials, body);
+      const { next, error } = executeMiddleware(validateLoginCredentials, { body });
 
       // Assert
       expect(error).toBeUndefined();
@@ -130,7 +134,7 @@ describe('validateCredentials middleware', () => {
       const body = { username: 'john', password: 'super-secret' };
 
       // Act
-      const { error } = executeMiddleware(validateLoginCredentials, body);
+      const { error } = executeMiddleware(validateLoginCredentials, { body });
 
       // Assert
       expect(error?.code).toBe(ErrorCodes.VALIDATION_ERROR);
@@ -144,7 +148,7 @@ describe('validateCredentials middleware', () => {
       const body = { username: 'john', password: 'super-secret', clientId: 'INVALID CLIENT' };
 
       // Act
-      const { error } = executeMiddleware(validateLoginCredentials, body);
+      const { error } = executeMiddleware(validateLoginCredentials, { body });
 
       // Assert
       expect(error?.code).toBe(ErrorCodes.VALIDATION_ERROR);
@@ -160,7 +164,7 @@ describe('validateCredentials middleware', () => {
       const body = { username: 'john', password: 'super-secret', clientId: 'app; DELETE FROM sessions' };
 
       // Act
-      const { error } = executeMiddleware(validateLoginCredentials, body);
+      const { error } = executeMiddleware(validateLoginCredentials, { body });
 
       // Assert
       expect(error?.code).toBe(ErrorCodes.VALIDATION_ERROR);
@@ -183,7 +187,7 @@ describe('validateCredentials middleware', () => {
       };
 
       // Act
-      const { next, error } = executeMiddleware(validateAssignClientAccessPayload, body);
+      const { next, error } = executeMiddleware(validateAssignClientAccessPayload, { body });
 
       // Assert
       expect(error).toBeUndefined();
@@ -195,7 +199,7 @@ describe('validateCredentials middleware', () => {
       const body = {};
 
       // Act
-      const { error } = executeMiddleware(validateAssignClientAccessPayload, body);
+      const { error } = executeMiddleware(validateAssignClientAccessPayload, { body });
 
       // Assert
       expect(error?.code).toBe(ErrorCodes.VALIDATION_ERROR);
@@ -211,7 +215,7 @@ describe('validateCredentials middleware', () => {
       };
 
       // Act
-      const { error } = executeMiddleware(validateAssignClientAccessPayload, body);
+      const { error } = executeMiddleware(validateAssignClientAccessPayload, { body });
 
       // Assert
       expect(error?.code).toBe(ErrorCodes.VALIDATION_ERROR);
@@ -229,7 +233,7 @@ describe('validateCredentials middleware', () => {
       };
 
       // Act
-      const { error } = executeMiddleware(validateAssignClientAccessPayload, body);
+      const { error } = executeMiddleware(validateAssignClientAccessPayload, { body });
 
       // Assert
       expect(error?.code).toBe(ErrorCodes.VALIDATION_ERROR);
@@ -247,7 +251,7 @@ describe('validateCredentials middleware', () => {
       };
 
       // Act
-      const { error } = executeMiddleware(validateAssignClientAccessPayload, body);
+      const { error } = executeMiddleware(validateAssignClientAccessPayload, { body });
 
       // Assert
       expect(error?.code).toBe(ErrorCodes.VALIDATION_ERROR);
@@ -268,7 +272,7 @@ describe('validateCredentials middleware', () => {
       const body = { username: 'john', roles: ['admin'] };
 
       // Act
-      const { next, error } = executeMiddleware(validateUserRolesPayload, body);
+      const { next, error } = executeMiddleware(validateUserRolesPayload, { body });
 
       // Assert
       expect(error).toBeUndefined();
@@ -280,7 +284,7 @@ describe('validateCredentials middleware', () => {
       const body = { roles: ['admin'] };
 
       // Act
-      const { error } = executeMiddleware(validateUserRolesPayload, body);
+      const { error } = executeMiddleware(validateUserRolesPayload, { body });
 
       // Assert
       expect(error?.code).toBe(ErrorCodes.VALIDATION_ERROR);
@@ -296,7 +300,7 @@ describe('validateCredentials middleware', () => {
       const body = { username: 'john' };
 
       // Act
-      const { error } = executeMiddleware(validateUserRolesPayload, body);
+      const { error } = executeMiddleware(validateUserRolesPayload, { body });
 
       // Assert
       expect(error?.code).toBe(ErrorCodes.VALIDATION_ERROR);
@@ -312,13 +316,59 @@ describe('validateCredentials middleware', () => {
       const body = { username: 'john', roles: ['admin; DROP TABLE auth.Users'] };
 
       // Act
-      const { error } = executeMiddleware(validateUserRolesPayload, body);
+      const { error } = executeMiddleware(validateUserRolesPayload, { body });
 
       // Assert
       expect(error?.code).toBe(ErrorCodes.VALIDATION_ERROR);
       expect(error?.details).toEqual(
         expect.arrayContaining([
           expect.objectContaining({ field: 'roles[0]', message: 'Role contains forbidden patterns' })
+        ])
+      );
+    });
+  });
+
+  describe('#validateGetUserRolesParams', () => {
+    it('should call next without error for valid username param', () => {
+      // Arrange
+      const params = { username: 'john' };
+
+      // Act
+      const { next, error } = executeMiddleware(validateGetUserRolesParams, { params });
+
+      // Assert
+      expect(error).toBeUndefined();
+      expect(next).toHaveBeenCalledWith();
+    });
+
+    it('should return VALIDATION_ERROR when username param is missing', () => {
+      // Arrange
+      const params = {};
+
+      // Act
+      const { error } = executeMiddleware(validateGetUserRolesParams, { params });
+
+      // Assert
+      expect(error?.code).toBe(ErrorCodes.VALIDATION_ERROR);
+      expect(error?.details).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ field: 'username', message: 'Username is required' })
+        ])
+      );
+    });
+
+    it('should return VALIDATION_ERROR for SQL-like username param', () => {
+      // Arrange
+      const params = { username: 'john; DROP TABLE users' };
+
+      // Act
+      const { error } = executeMiddleware(validateGetUserRolesParams, { params });
+
+      // Assert
+      expect(error?.code).toBe(ErrorCodes.VALIDATION_ERROR);
+      expect(error?.details).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ field: 'username', message: 'Username contains forbidden patterns' })
         ])
       );
     });
