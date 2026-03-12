@@ -4,6 +4,7 @@ import { LoginUser } from '../../../application/use-cases/LoginUser';
 import { AssignUserClientAccess } from '../../../application/use-cases/AssignUserClientAccess';
 import { AddUserRoles } from '../../../application/use-cases/AddUserRoles';
 import { RemoveUserRoles } from '../../../application/use-cases/RemoveUserRoles';
+import { GetUserRoles } from '../../../application/use-cases/GetUserRoles';
 
 export class AuthController {
   constructor(
@@ -11,7 +12,8 @@ export class AuthController {
     private readonly loginUser: LoginUser,
     private readonly assignUserClientAccess: AssignUserClientAccess,
     private readonly addUserRoles: AddUserRoles,
-    private readonly removeUserRoles: RemoveUserRoles
+    private readonly removeUserRoles: RemoveUserRoles,
+    private readonly getUserRolesUseCase: GetUserRoles
   ) {}
 
   register = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -58,6 +60,16 @@ export class AuthController {
     try {
       const { username, roles } = req.body as { username: string; roles: string[] };
       const result = await this.removeUserRoles.execute({ username, roles });
+      res.status(200).json({ data: result });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  getUserRoles = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { username } = req.params as { username: string };
+      const result = await this.getUserRolesUseCase.execute({ username });
       res.status(200).json({ data: result });
     } catch (error) {
       next(error);

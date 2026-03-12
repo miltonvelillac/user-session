@@ -25,6 +25,7 @@ const loadDependenciesModule = (jwtSecret?: string): ModuleContext => {
   const AssignUserClientAccess = jest.fn();
   const AddUserRoles = jest.fn();
   const RemoveUserRoles = jest.fn();
+  const GetUserRoles = jest.fn();
   const LoginUser = jest.fn();
   const AuthController = jest.fn();
 
@@ -49,6 +50,7 @@ const loadDependenciesModule = (jwtSecret?: string): ModuleContext => {
     jest.doMock('../src/application/use-cases/AssignUserClientAccess', () => ({ AssignUserClientAccess }));
     jest.doMock('../src/application/use-cases/AddUserRoles', () => ({ AddUserRoles }));
     jest.doMock('../src/application/use-cases/RemoveUserRoles', () => ({ RemoveUserRoles }));
+    jest.doMock('../src/application/use-cases/GetUserRoles', () => ({ GetUserRoles }));
     jest.doMock('../src/application/use-cases/LoginUser', () => ({ LoginUser }));
     jest.doMock('../src/adapters/http/controllers/AuthController', () => ({ AuthController }));
 
@@ -70,6 +72,7 @@ const loadDependenciesModule = (jwtSecret?: string): ModuleContext => {
       AssignUserClientAccess,
       AddUserRoles,
       RemoveUserRoles,
+      GetUserRoles,
       LoginUser,
       AuthController
     }
@@ -107,6 +110,7 @@ describe('dependencies.ts', () => {
         dependenciesModule.TOKENS.AssignUserClientAccess,
         dependenciesModule.TOKENS.AddUserRoles,
         dependenciesModule.TOKENS.RemoveUserRoles,
+        dependenciesModule.TOKENS.GetUserRoles,
         dependenciesModule.TOKENS.LoginUser,
         dependenciesModule.TOKENS.AuthController
       ]);
@@ -353,6 +357,28 @@ describe('dependencies.ts', () => {
     });
   });
 
+  describe('#GetUserRoles factory', () => {
+    it('should resolve and inject required dependencies', () => {
+      // Arrange
+      const { dependenciesModule, register, constructors } = loadDependenciesModule();
+      const getRolesFactory = getFactoryFromRegisterCalls(register, dependenciesModule.TOKENS.GetUserRoles);
+      const userRepository = { name: 'user-repo' };
+      const userRoleRepository = { name: 'user-role-repo' };
+      const resolve = jest
+        .fn()
+        .mockReturnValueOnce(userRepository)
+        .mockReturnValueOnce(userRoleRepository);
+
+      // Act
+      getRolesFactory({ resolve } as unknown as { resolve: jest.Mock });
+
+      // Assert
+      expect(resolve).toHaveBeenNthCalledWith(1, dependenciesModule.TOKENS.UserRepository);
+      expect(resolve).toHaveBeenNthCalledWith(2, dependenciesModule.TOKENS.UserRoleRepository);
+      expect(constructors.GetUserRoles).toHaveBeenCalledWith(userRepository, userRoleRepository);
+    });
+  });
+
   describe('#AuthController factory', () => {
     it('should resolve and inject use-cases', () => {
       // Arrange
@@ -363,13 +389,15 @@ describe('dependencies.ts', () => {
       const assignUserClientAccess = { name: 'assign-user-client-access' };
       const addUserRoles = { name: 'add-user-roles' };
       const removeUserRoles = { name: 'remove-user-roles' };
+      const getUserRoles = { name: 'get-user-roles' };
       const resolve = jest
         .fn()
         .mockReturnValueOnce(createUser)
         .mockReturnValueOnce(loginUser)
         .mockReturnValueOnce(assignUserClientAccess)
         .mockReturnValueOnce(addUserRoles)
-        .mockReturnValueOnce(removeUserRoles);
+        .mockReturnValueOnce(removeUserRoles)
+        .mockReturnValueOnce(getUserRoles);
 
       // Act
       authControllerFactory({ resolve } as unknown as { resolve: jest.Mock });
@@ -380,12 +408,14 @@ describe('dependencies.ts', () => {
       expect(resolve).toHaveBeenNthCalledWith(3, dependenciesModule.TOKENS.AssignUserClientAccess);
       expect(resolve).toHaveBeenNthCalledWith(4, dependenciesModule.TOKENS.AddUserRoles);
       expect(resolve).toHaveBeenNthCalledWith(5, dependenciesModule.TOKENS.RemoveUserRoles);
+      expect(resolve).toHaveBeenNthCalledWith(6, dependenciesModule.TOKENS.GetUserRoles);
       expect(constructors.AuthController).toHaveBeenCalledWith(
         createUser,
         loginUser,
         assignUserClientAccess,
         addUserRoles,
-        removeUserRoles
+        removeUserRoles,
+        getUserRoles
       );
     });
   });
