@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { buildApp } from './adapters/http/app';
 import { container, TOKENS } from './infrastructure/di/dependencies';
 import { AuthController } from './adapters/http/controllers/AuthController';

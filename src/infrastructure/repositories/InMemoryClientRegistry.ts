@@ -8,7 +8,7 @@ export class InMemoryClientRegistry implements ClientRegistry {
     // this.activeClientIds = new Set(clientIds);
   }
 
-  async isActiveClient(clientId: string): Promise<boolean> {
+  async isActiveClient(clientId: string): Promise<boolean> {    
     return this.activeClientIds.has(clientId);
   }
 }

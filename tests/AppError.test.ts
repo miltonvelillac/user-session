@@ -52,6 +52,7 @@ describe('AppError', () => {
       expect(values).toContain('CLIENT_ACCESS_DENIED');
       expect(values).toContain('UNAUTHORIZED');
       expect(values).toContain('FORBIDDEN');
+      expect(values).toContain('DATABASE_UNAVAILABLE');
       expect(values).toContain('VALIDATION_ERROR');
     });
   });

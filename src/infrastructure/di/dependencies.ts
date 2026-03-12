@@ -1,11 +1,10 @@
 import { Container } from './Container';
-import { InMemoryUserRepository } from '../repositories/InMemoryUserRepository';
-import { InMemoryTokenRepository } from '../repositories/InMemoryTokenRepository';
-import { InMemoryClientRegistry } from '../repositories/InMemoryClientRegistry';
-import { InMemoryUserClientAccessRepository } from '../repositories/InMemoryUserClientAccessRepository';
+import { SqlServerUserRepository } from '../repositories/SqlServerUserRepository';
+import { SqlServerTokenRepository } from '../repositories/SqlServerTokenRepository';
+import { SqlServerClientRegistry } from '../repositories/SqlServerClientRegistry';
+import { SqlServerUserClientAccessRepository } from '../repositories/SqlServerUserClientAccessRepository';
 import { SimplePasswordHasher } from '../security/SimplePasswordHasher';
 import { JwtTokenSigner } from '../security/JwtTokenSigner';
-import { getAuthClientIds } from '../config/authClients';
 import { CreateUser } from '../../application/use-cases/CreateUser';
 import { LoginUser } from '../../application/use-cases/LoginUser';
 import { AssignUserClientAccess } from '../../application/use-cases/AssignUserClientAccess';
@@ -26,10 +25,10 @@ export const TOKENS = {
 
 export const container = new Container();
 
-container.register(TOKENS.UserRepository, () => new InMemoryUserRepository());
-container.register(TOKENS.TokenRepository, () => new InMemoryTokenRepository());
-container.register(TOKENS.ClientRegistry, () => new InMemoryClientRegistry(getAuthClientIds()));
-container.register(TOKENS.UserClientAccessRepository, () => new InMemoryUserClientAccessRepository());
+container.register(TOKENS.UserRepository, () => new SqlServerUserRepository());
+container.register(TOKENS.TokenRepository, () => new SqlServerTokenRepository());
+container.register(TOKENS.ClientRegistry, () => new SqlServerClientRegistry());
+container.register(TOKENS.UserClientAccessRepository, () => new SqlServerUserClientAccessRepository());
 container.register(TOKENS.PasswordHasher, () => new SimplePasswordHasher());
 container.register(TOKENS.TokenSigner, () => new JwtTokenSigner(process.env.JWT_SECRET || 'dev-secret'));
 

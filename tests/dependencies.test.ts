@@ -4,7 +4,6 @@ type ModuleContext = {
     container: { register: jest.Mock };
   };
   register: jest.Mock;
-  getAuthClientIds: jest.Mock;
   constructors: Record<string, jest.Mock>;
 };
 
@@ -15,17 +14,16 @@ const loadDependenciesModule = (jwtSecret?: string): ModuleContext => {
   const containerInstance = { register };
   const Container = jest.fn(() => containerInstance);
 
-  const InMemoryUserRepository = jest.fn();
-  const InMemoryTokenRepository = jest.fn();
-  const InMemoryClientRegistry = jest.fn();
-  const InMemoryUserClientAccessRepository = jest.fn();
+  const SqlServerUserRepository = jest.fn();
+  const SqlServerTokenRepository = jest.fn();
+  const SqlServerClientRegistry = jest.fn();
+  const SqlServerUserClientAccessRepository = jest.fn();
   const SimplePasswordHasher = jest.fn();
   const JwtTokenSigner = jest.fn();
   const CreateUser = jest.fn();
   const AssignUserClientAccess = jest.fn();
   const LoginUser = jest.fn();
   const AuthController = jest.fn();
-  const getAuthClientIds = jest.fn(() => ['web-app', 'mobile-app']);
 
   if (jwtSecret === undefined) {
     delete process.env.JWT_SECRET;
@@ -37,13 +35,12 @@ const loadDependenciesModule = (jwtSecret?: string): ModuleContext => {
 
   jest.isolateModules(() => {
     jest.doMock('../src/infrastructure/di/Container', () => ({ Container }));
-    jest.doMock('../src/infrastructure/repositories/InMemoryUserRepository', () => ({ InMemoryUserRepository }));
-    jest.doMock('../src/infrastructure/repositories/InMemoryTokenRepository', () => ({ InMemoryTokenRepository }));
-    jest.doMock('../src/infrastructure/repositories/InMemoryClientRegistry', () => ({ InMemoryClientRegistry }));
-    jest.doMock('../src/infrastructure/repositories/InMemoryUserClientAccessRepository', () => ({ InMemoryUserClientAccessRepository }));
+    jest.doMock('../src/infrastructure/repositories/SqlServerUserRepository', () => ({ SqlServerUserRepository }));
+    jest.doMock('../src/infrastructure/repositories/SqlServerTokenRepository', () => ({ SqlServerTokenRepository }));
+    jest.doMock('../src/infrastructure/repositories/SqlServerClientRegistry', () => ({ SqlServerClientRegistry }));
+    jest.doMock('../src/infrastructure/repositories/SqlServerUserClientAccessRepository', () => ({ SqlServerUserClientAccessRepository }));
     jest.doMock('../src/infrastructure/security/SimplePasswordHasher', () => ({ SimplePasswordHasher }));
     jest.doMock('../src/infrastructure/security/JwtTokenSigner', () => ({ JwtTokenSigner }));
-    jest.doMock('../src/infrastructure/config/authClients', () => ({ getAuthClientIds }));
     jest.doMock('../src/application/use-cases/CreateUser', () => ({ CreateUser }));
     jest.doMock('../src/application/use-cases/AssignUserClientAccess', () => ({ AssignUserClientAccess }));
     jest.doMock('../src/application/use-cases/LoginUser', () => ({ LoginUser }));
@@ -55,12 +52,11 @@ const loadDependenciesModule = (jwtSecret?: string): ModuleContext => {
   return {
     dependenciesModule: dependenciesModule!,
     register,
-    getAuthClientIds,
     constructors: {
-      InMemoryUserRepository,
-      InMemoryTokenRepository,
-      InMemoryClientRegistry,
-      InMemoryUserClientAccessRepository,
+      SqlServerUserRepository,
+      SqlServerTokenRepository,
+      SqlServerClientRegistry,
+      SqlServerUserClientAccessRepository,
       SimplePasswordHasher,
       JwtTokenSigner,
       CreateUser,
@@ -132,17 +128,72 @@ describe('dependencies.ts', () => {
   });
 
   describe('#ClientRegistry factory', () => {
-    it('should pass configured client IDs to client registry constructor', () => {
+    it('should create SQL Server client registry without extra arguments', () => {
       // Arrange
-      const { dependenciesModule, register, getAuthClientIds, constructors } = loadDependenciesModule();
+      const { dependenciesModule, register, constructors } = loadDependenciesModule();
       const clientRegistryFactory = getFactoryFromRegisterCalls(register, dependenciesModule.TOKENS.ClientRegistry);
 
       // Act
       clientRegistryFactory({ resolve: jest.fn() } as unknown as { resolve: jest.Mock });
 
       // Assert
-      expect(getAuthClientIds).toHaveBeenCalledTimes(1);
-      expect(constructors.InMemoryClientRegistry).toHaveBeenCalledWith(['web-app', 'mobile-app']);
+      expect(constructors.SqlServerClientRegistry).toHaveBeenCalledWith();
+    });
+  });
+
+  describe('#UserRepository factory', () => {
+    it('should create SQL Server user repository', () => {
+      // Arrange
+      const { dependenciesModule, register, constructors } = loadDependenciesModule();
+      const userRepositoryFactory = getFactoryFromRegisterCalls(register, dependenciesModule.TOKENS.UserRepository);
+
+      // Act
+      userRepositoryFactory({ resolve: jest.fn() } as unknown as { resolve: jest.Mock });
+
+      // Assert
+      expect(constructors.SqlServerUserRepository).toHaveBeenCalledWith();
+    });
+  });
+
+  describe('#TokenRepository factory', () => {
+    it('should create SQL Server token repository', () => {
+      // Arrange
+      const { dependenciesModule, register, constructors } = loadDependenciesModule();
+      const tokenRepositoryFactory = getFactoryFromRegisterCalls(register, dependenciesModule.TOKENS.TokenRepository);
+
+      // Act
+      tokenRepositoryFactory({ resolve: jest.fn() } as unknown as { resolve: jest.Mock });
+
+      // Assert
+      expect(constructors.SqlServerTokenRepository).toHaveBeenCalledWith();
+    });
+  });
+
+  describe('#UserClientAccessRepository factory', () => {
+    it('should create SQL Server user-client-access repository', () => {
+      // Arrange
+      const { dependenciesModule, register, constructors } = loadDependenciesModule();
+      const accessRepositoryFactory = getFactoryFromRegisterCalls(register, dependenciesModule.TOKENS.UserClientAccessRepository);
+
+      // Act
+      accessRepositoryFactory({ resolve: jest.fn() } as unknown as { resolve: jest.Mock });
+
+      // Assert
+      expect(constructors.SqlServerUserClientAccessRepository).toHaveBeenCalledWith();
+    });
+  });
+
+  describe('#PasswordHasher factory', () => {
+    it('should create password hasher implementation', () => {
+      // Arrange
+      const { dependenciesModule, register, constructors } = loadDependenciesModule();
+      const hasherFactory = getFactoryFromRegisterCalls(register, dependenciesModule.TOKENS.PasswordHasher);
+
+      // Act
+      hasherFactory({ resolve: jest.fn() } as unknown as { resolve: jest.Mock });
+
+      // Assert
+      expect(constructors.SimplePasswordHasher).toHaveBeenCalledWith();
     });
   });
 

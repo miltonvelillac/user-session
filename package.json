@@ -8,16 +8,20 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "dev": "ts-node src/server.ts",
-    "test": "jest --runInBand"
+    "test": "jest --runInBand",
+    "encrypt": "node -r dotenv/config -e \"const c=require('crypto');const k=Buffer.from(process.env.MASTER_KEY,'base64');if(k.length!==32)throw new Error('MASTER_KEY inválida');const pwd='MiPassword';const iv=c.randomBytes(12);const ci=c.createCipheriv('aes-256-gcm',k,iv);const ct=Buffer.concat([ci.update(pwd,'utf8'),ci.final()]);const tag=ci.getAuthTag();console.log(iv.toString('base64')+':'+ct.toString('base64')+':'+tag.toString('base64'))\""
   },
   "dependencies": {
+    "dotenv": "^17.3.1",
     "express": "^4.19.2",
-    "jsonwebtoken": "^9.0.2"
+    "jsonwebtoken": "^9.0.2",
+    "mssql": "^12.2.0"
   },
   "devDependencies": {
     "@types/express": "^4.17.21",
     "@types/jest": "^29.5.12",
     "@types/jsonwebtoken": "^9.0.6",
+    "@types/mssql": "^9.1.9",
     "@types/node": "^20.11.30",
     "@types/supertest": "^2.0.16",
     "jest": "^29.7.0",
